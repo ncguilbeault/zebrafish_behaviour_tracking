@@ -11,6 +11,6 @@ Behavioural tracking software designed for analyzing videos of zebrafish behavio
 ## Usage
 After installing the necessary dependancies, cd to the directory and run the following code on the command line:
 
-'''
+```
 python main.py
-'''
+```
