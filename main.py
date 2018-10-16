@@ -28,7 +28,7 @@ class MainWindow(QMainWindow):
         self.main_tab = MainTab()
         self.setCentralWidget(self.main_tab)
         self.setMenuBar(self.menubar)
-        self.setWindowTitle('Zebrafish Brain and Behaviour Software Toolset (ZeBBeST)')
+        self.setWindowTitle('Zebrafish Behaviour Tracking')
         self.setWindowState(Qt.WindowMaximized)
         self.show()
 
@@ -106,7 +106,7 @@ class MainWindow(QMainWindow):
     def trigger_open_video(self):
         self.main_tab.tracking_window.tracking_content.trigger_open_video()
     def trigger_open_tracked_video(self):
-        self.main_tab.plotting_window.plotting_content.trigger_open_tracked_video()
+        self.main_tab.plotting_window.plotting_content.trigger_open_video()
     def trigger_unload_all_tracking(self):
         self.main_tab.tracking_window.tracking_content.trigger_unload_all_tracking()
     def trigger_load_tracking_results(self):
@@ -182,7 +182,7 @@ class TrackingContent(QMainWindow):
             self.preview_frame_window_x_offset = 30
             self.preview_frame_window_y_offset = 30
             self.preview_frame_window_label_size = (self.preview_frame_window_size[0] - self.preview_frame_window_x_offset, self.preview_frame_window_size[1] - self.preview_frame_window_y_offset)
-            self.descriptors_window_size = (845, 500)
+            self.descriptors_window_size = (845, 900)
             self.descriptors_x_offset = 10
             self.descriptors_y_offset = 75
             self.descriptors_height = 30
@@ -2336,19 +2336,7 @@ class PlottingContent(QMainWindow):
             self.preview_frame_window_x_offset = 30
             self.preview_frame_window_y_offset = 30
             self.preview_frame_window_label_size = (self.preview_frame_window_size[0] - self.preview_frame_window_x_offset, self.preview_frame_window_size[1] - self.preview_frame_window_y_offset)
-            self.descriptors_window_size = (845, 500)
-            self.descriptors_x_offset = 10
-            self.descriptors_y_offset = 75
-            self.descriptors_height = 30
-            self.descriptors_y_spacing = 10
-            self.status_window_size = (845, 390)
-            self.statuses_x_offset = 20
-            self.statuses_y_offset = 75
-            self.status_bars_height = 30
-            self.statuses_button_size = (400, 50)
-            self.statuses_y_spacing = 10
-            self.statuses_x_spacing = 10
-            self.status_buttons_y_spacing = 10
+            self.plotting_window_size = (1455, 1240)
             self.preview_frame_window_slider_height = 20
             self.preview_frame_number_textbox_y_spacing = 10
             self.preview_frame_number_textbox_label_size = (160, 25)
@@ -2368,35 +2356,6 @@ class PlottingContent(QMainWindow):
             self.video_playback_button_x_offset = 30
             self.video_playback_button_x_spacing = 5
             self.video_playback_button_icon_size = (60, 60)
-            self.preview_parameters_window_size = (450, 330)
-            self.preview_parameters_x_offset = 10
-            self.preview_parameters_y_offset = 75
-            self.preview_parameters_height = 28
-            self.preview_parameters_x_spacing = 20
-            self.preview_parameters_y_spacing = 5
-            self.preview_parameters_checkbox_size = (15, 15)
-            self.tracking_parameters_window_size = (600, 900)
-            self.tracking_parameters_label_width = 420
-            self.tracking_parameters_x_offset = 10
-            self.tracking_parameters_y_offset = 75
-            self.tracking_parameters_height = 30
-            self.tracking_parameters_box_width = 120
-            self.tracking_parameters_y_spacing = 10
-            self.tracking_parameters_button_size = (500, 50)
-            self.colour_parameters_window_size = (995, 330)
-            self.colour_parameters_button_size = (220, 60)
-            self.colour_parameters_x_offset = 0
-            self.colour_parameters_y_offset = 80
-            self.colour_parameters_height = 30
-            self.colour_parameters_label_width = 130
-            self.colour_parameters_textbox_width = 0
-            self.colour_parameters_icon_size = (18, 18)
-            self.colour_parameters_width = 200
-            self.colour_parameters_x_spacing = 20
-            self.colour_parameters_y_spacing = 10
-            self.colour_parameters_button_y_spacing = 20
-            self.colour_select_button_x_spacing = 0
-            self.colour_parameters_button_x_offset = 10
         else:
             self.font_title.setPointSize(18)
             self.font_text.setPointSize(10)
@@ -2409,19 +2368,7 @@ class PlottingContent(QMainWindow):
             self.preview_frame_window_x_offset = 30
             self.preview_frame_window_y_offset = 30
             self.preview_frame_window_label_size = (self.preview_frame_window_size[0] - self.preview_frame_window_x_offset, self.preview_frame_window_size[1] - self.preview_frame_window_y_offset)
-            self.descriptors_window_size = (1060, 1000)
-            self.descriptors_x_offset = 10
-            self.descriptors_y_offset = 60
-            self.descriptors_height = 30
-            self.descriptors_y_spacing = 10
-            self.status_window_size = (845, 390)
-            self.statuses_x_offset = 20
-            self.statuses_y_offset = 75
-            self.status_bars_height = 30
-            self.statuses_button_size = (400, 50)
-            self.statuses_y_spacing = 10
-            self.statuses_x_spacing = 10
-            self.status_buttons_y_spacing = 10
+            self.plotting_window_size = (1060, 1000)
             self.preview_frame_window_slider_height = 20
             self.preview_frame_number_textbox_y_spacing = 10
             self.preview_frame_number_textbox_label_size = (100, 25)
@@ -2441,38 +2388,13 @@ class PlottingContent(QMainWindow):
             self.video_playback_button_x_offset = 30
             self.video_playback_button_x_spacing = 5
             self.video_playback_button_icon_size = (60, 60)
-            self.preview_parameters_window_size = (400, 295)
-            self.preview_parameters_x_offset = 10
-            self.preview_parameters_y_offset = 60
-            self.preview_parameters_height = 18
-            self.preview_parameters_x_spacing = 5
-            self.preview_parameters_y_spacing = 5
-            self.preview_parameters_checkbox_size = (15, 15)
-            self.tracking_parameters_window_size = (450, 1000)
-            self.tracking_parameters_label_width = 280
-            self.tracking_parameters_x_offset = 0
-            self.tracking_parameters_y_offset = 60
-            self.tracking_parameters_height = 22
-            self.tracking_parameters_box_width = 145
-            self.tracking_parameters_y_spacing = 17
-            self.tracking_parameters_button_size = (400, 80)
-            self.colour_parameters_window_size = (1110, 295)
-            self.colour_parameters_button_size = (300, 60)
-            self.colour_parameters_x_offset = 20
-            self.colour_parameters_y_offset = 60
-            self.colour_parameters_height = 20
-            self.colour_parameters_label_width = 100
-            self.colour_parameters_textbox_width = 100
-            self.colour_parameters_icon_size = (18, 18)
-            self.colour_parameters_width = 220
-            self.colour_parameters_x_spacing = 50
-            self.colour_parameters_y_spacing = 18
-            self.colour_parameters_button_y_spacing = 15
-            self.colour_select_button_x_spacing = 5
-            self.colour_parameters_button_x_offset = 10
     def initialize_class_variables(self):
         self.frame_number = 1
         self.video_path = None
+        self.previous_preview_frame_window_horizontal_scroll_bar_max = None
+        self.previous_preview_frame_window_vertical_scroll_bar_max = None
+        self.magnify_frame = False
+        self.pan_frame = False
         self.play_video_slow_speed = False
         self.play_video_medium_speed = False
         self.play_video_max_speed = False
@@ -2694,14 +2616,19 @@ class PlottingContent(QMainWindow):
 
         self.update_interactive_frame_buttons(inactivate = True)
     def add_data_plot_window(self):
+        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing) / 2560) * self.main_window_width
+        new_y = (self.main_window_y_offset / 1400) * self.main_window_height
+        new_width = (self.plotting_window_size[0] / 2560) * self.main_window_width
+        new_height = (self.plotting_window_size[1] / 1400) * self.main_window_height
+
         self.data_plot_window = QScrollArea(self)
-        self.data_plot_window.move(1015, 25)
-        self.data_plot_window.resize(1000, 1000)
+        self.data_plot_window.move(new_x, new_y)
+        self.data_plot_window.resize(new_width, new_height)
         self.data_plot_window.setFrameShape(QFrame.Panel)
         self.data_plot_window.setFrameShadow(QFrame.Sunken)
         self.data_plot_window.setLineWidth(5)
 
-    def update_preview_frame(self, frame, frame_width, frame_height, scaled_width = None, grayscale = True):
+    def update_preview_frame(self, frame, frame_width, frame_height, scaled_width = None, grayscale = False):
         if grayscale:
             format = QImage.Format_Indexed8
         else:
@@ -2857,8 +2784,7 @@ class PlottingContent(QMainWindow):
         self.video_path, _ = QFileDialog.getOpenFileName(self,"Open Video File", "","Video Files (*.avi; *.mp4)", options=QFileDialog.Options())
         if self.video_path:
             self.get_video_attributes()
-            self.update_descriptors()
-            success, self.frame = ut.load_frame_into_memory(self.video_path, self.frame_number - 1)
+            success, self.frame = ut.load_frame_into_memory(self.video_path, self.frame_number - 1, convert_to_grayscale = False)
             if success and self.frame is not None:
                 self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height)
                 self.update_preview_frame_window()
@@ -2869,78 +2795,25 @@ class PlottingContent(QMainWindow):
                 self.update_video_playback_buttons(activate = True, activate_pause_video_button = True)
                 self.update_frame_change_buttons(activate = True)
                 self.update_interactive_frame_buttons(activate = True)
-                if self.background_path:
-                    self.update_tracking_parameters(activate = True)
-                    self.update_preview_parameters(activate = True)
-                    self.update_tracking_parameters_buttons(activate = True)
-                    self.update_colour_parameters(activate = True)
-                    self.update_colour_parameters_buttons(activate = True)
     def trigger_update_preview(self, magnify = False, demagnify = False):
-        if self.preview_background:
-            use_grayscale = True
-            if magnify:
-                self.update_preview_frame(self.background, self.background_width, self.background_height, scaled_width = self.preview_frame_window_label_size[0] + 100, grayscale = use_grayscale)
-            if demagnify:
-                self.update_preview_frame(self.background, self.background_width, self.background_height, scaled_width = self.preview_frame_window_label_size[0] - 100, grayscale = use_grayscale)
-            if not magnify and not demagnify:
-                self.update_preview_frame(self.background, self.background_width, self.background_height, scaled_width = self.preview_frame_window_label_size[0], grayscale = use_grayscale)
-            self.update_preview_frame_window()
-            self.update_frame_window_slider(inactivate = True)
-            self.update_preview_frame_number_textbox(inactivate = True)
-            self.update_video_time_textbox(inactivate = True)
-            self.update_video_playback_buttons(inactivate = True)
-            self.update_frame_change_buttons(inactivate = True)
-            self.update_interactive_frame_buttons(activate = True)
-        elif self.preview_eyes_threshold:
-            if self.video_path is not None:
-                success, self.frame = ut.load_frame_into_memory(self.video_path, self.frame_number - 1)
-                if success and self.frame is not None:
-                    use_grayscale = True
-                    self.frame = ut.apply_threshold_to_frame(ut.apply_median_blur_to_frame(ut.subtract_background_from_frame(self.frame, self.background)), self.eyes_threshold)
-                    if magnify:
-                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = self.preview_frame_window_label_size[0] + 100, grayscale = use_grayscale)
-                    if demagnify:
-                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = self.preview_frame_window_label_size[0] - 100, grayscale = use_grayscale)
-                    if not magnify and not demagnify:
-                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = self.preview_frame_window_label_size[0], grayscale = use_grayscale)
-                    self.update_preview_frame_window()
-                    self.update_frame_window_slider(activate = True)
-                    self.update_preview_frame_number_textbox(activate = True)
-                    self.update_video_playback_buttons(activate = True, activate_pause_video_button = True)
-                    self.update_frame_change_buttons(activate = True)
-                    self.update_interactive_frame_buttons(activate = True)
+        if self.video_path is not None:
+            success, self.frame = ut.load_frame_into_memory(self.video_path, self.frame_number - 1, convert_to_grayscale = False)
+            if success and self.frame is not None:
+                if magnify:
+                    self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = self.preview_frame_window_label_size[0] + 100)
+                if demagnify:
+                    self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = self.preview_frame_window_label_size[0] - 100)
+                if not magnify and not demagnify:
+                    self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = self.preview_frame_window_label_size[0])
+                self.update_preview_frame_window()
+                self.update_frame_window_slider(activate = True)
+                self.update_preview_frame_number_textbox(activate = True)
+                self.update_video_time_textbox(activate = True)
+                self.update_video_playback_buttons(activate = True)
+                self.update_frame_change_buttons(activate = True)
+                self.update_interactive_frame_buttons(activate = True)
         else:
-            if self.video_path is not None:
-                success, self.frame = ut.load_frame_into_memory(self.video_path, self.frame_number - 1)
-                if success and self.frame is not None:
-                    use_grayscale = True
-                    if self.preview_background_subtracted_frame:
-                        self.frame = ut.subtract_background_from_frame(self.frame, self.background)
-                        if self.preview_tracking_results:
-                            results = ut.track_tail_in_frame([ut.apply_median_blur_to_frame(self.frame), success, self.n_tail_points, self.dist_tail_points, self.dist_eyes, self.dist_swim_bladder, self.pixel_threshold, self.extended_eyes_calculation, self.eyes_threshold])
-                            if results is not None:
-                                self.frame = ut.annotate_tracking_results_onto_frame(self.frame, results, self.colours, self.line_length, self.extended_eyes_calculation, self.eyes_line_length)
-                                use_grayscale = False
-                    elif self.preview_tracking_results:
-                        results = ut.track_tail_in_frame([ut.apply_median_blur_to_frame(ut.subtract_background_from_frame(self.frame, self.background)), success, self.n_tail_points, self.dist_tail_points, self.dist_eyes, self.dist_swim_bladder, self.pixel_threshold, self.extended_eyes_calculation, self.eyes_threshold])
-                        if results is not None:
-                            self.frame = ut.annotate_tracking_results_onto_frame(self.frame, results, self.colours, self.line_length, self.extended_eyes_calculation, self.eyes_line_length)
-                            use_grayscale = False
-                    if magnify:
-                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = self.preview_frame_window_label_size[0] + 100, grayscale = use_grayscale)
-                    if demagnify:
-                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = self.preview_frame_window_label_size[0] - 100, grayscale = use_grayscale)
-                    if not magnify and not demagnify:
-                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = self.preview_frame_window_label_size[0], grayscale = use_grayscale)
-                    self.update_preview_frame_window()
-                    self.update_frame_window_slider(activate = True)
-                    self.update_preview_frame_number_textbox(activate = True)
-                    self.update_video_time_textbox(activate = True)
-                    self.update_video_playback_buttons(activate = True)
-                    self.update_frame_change_buttons(activate = True)
-                    self.update_interactive_frame_buttons(activate = True)
-            else:
-                self.update_preview_frame_window(clear = True)
+            self.update_preview_frame_window(clear = True)
     def trigger_load_tracking_results(self):
         self.tracking_data_path, _ = QFileDialog.getOpenFileName(self, "Open Tracking Data", "","Tracking Data (*.npy)", options = QFileDialog.Options())
         if self.tracking_data_path:
@@ -2954,7 +2827,7 @@ class PlottingContent(QMainWindow):
         self.initialize_class_variables()
         self.update_preview_frame_window(clear = True)
         self.update_frame_window_slider(inactivate = True)
-        self.update_tracking_video_time_textbox(inactivate = True)
+        self.update_video_time_textbox(inactivate = True)
         self.update_update_preview_button(inactivate = True)
         self.update_frame_change_buttons(inactivate = True)
         self.update_video_playback_buttons(inactivate = True)
