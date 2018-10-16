@@ -1,5 +1,5 @@
 # Zebrafish Behaviour Tracking
-Behavioural tracking software designed for analyzing videos of zebrafish behaviour. Written in [Python](https://www.python.org/). Contains utility functions and graphical user interface.
+Behavioural tracking software designed for analyzing videos of zebrafish behaviour. Written in [Python](https://www.python.org/). Contains a graphical user interface and utility functions for command line use.
 
 ## Dependencies
 * [Python 3.6](https://www.python.org/downloads/release/python-361/) or greater
