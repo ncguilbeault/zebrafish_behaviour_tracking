@@ -7,6 +7,7 @@ import os
 import sys
 import multiprocessing as mp
 import time
+import scipy.stats as stats
 
 def get_total_frame_number_from_video(video_path):
     capture = cv2.VideoCapture(video_path)
@@ -32,7 +33,7 @@ def get_video_format_from_video(video_path):
     capture.release()
     return video_format
 
-def calculate_background(video_path, method = 'brightest', save_path = None, num_backgrounds = 1, save_background = False):
+def calculate_background(video_path, method = 'brightest', save_path = None, save_background = False, chunk_size = [100, 100], frames_to_skip = 1):
 
     '''
     Function that calculates the background of a video.
@@ -51,14 +52,20 @@ def calculate_background(video_path, method = 'brightest', save_path = None, num
 
     Optional Arguments:
         method (str) - Method to use for calculating background. Different types of methods include brightest, darkest and mode. Default = brightest.
-        num_backgrounds (int) - Number of returned backgrounds. Default = 1.
-            ** Useful for long videos when the background illumination fluctuates over time.
         save_background (bool) - Saves the background(s) seperately into external TIFF files. Default = False.
             ** Location of images can be found in path to video.
             ** Name of file will be {name of video}_background.tif
+        chunk_size (list(int, int)) - Determines the size of the area of the background to be successively computed if using mode as the method of background calculation. Default = [100, 100].
+            ** When calculating the mode, the entire distribution of pixel values across the entire video must be held in memory.
+            ** Thus, to preserve memory resources, patches of the background are computed sequentially until the entire background image has been calculated.
+            ** Smaller chunk sizes take longer to process but decrease the number of values held in memory at a time.
+            ** Larger chunk sizes make processing faster but require more values to be held in memory.
+        frames_to_skip (int) - Determines the number of frames to skip when calculating background. Default = 1.
+            ** When default is 1, every frame is used when calculating background.
+            ** Larger values speed up the background calculation but may provide a less accurate representation of the background.
 
     Returns:
-        background_array (list(num_backgrounds, frame width, frame height)) - Array of calculated background images.
+        background (frame width, frame height) - Calculated background image.
     '''
 
     # Check arguments.
@@ -68,77 +75,113 @@ def calculate_background(video_path, method = 'brightest', save_path = None, num
     if not isinstance(method, str) or method not in ['brightest', 'darkest', 'mode']:
         print('Error: method must be formatted as a string and must be one of the following: brightest, darkest, or mode.')
         return
-    if not isinstance(num_backgrounds, int):
-        print('Error: num_backgrounds must be formatted as an integer.')
-        return
     if not isinstance(save_background, bool):
         print('Error: save_background must be formatted as a boolean (True/False).')
         return
+    if not isinstance(chunk_size, list):
+        print('Error: chunk_size must be formatted as a list containing 2 integer values.')
+        return
+    if len(chunk_size) != 2:
+        print('Error: chunk_size must be formatted as a list containing 2 integer values.')
+        return
+    if not isinstance(chunk_size[0], int) or not isinstance(chunk_size[1], int):
+        print('Error: chunk_size must be formatted as a list containing 2 integer values.')
+        return
+    if not isinstance(frames_to_skip, int):
+        print('Error: frames_to_skip must be formatted as an integer.')
+        return
+
+    t0 = time.time()
 
     try:
         # Load the video.
         capture = cv2.VideoCapture(video_path)
-        # Initialize background array.
-        background_array = []
         # Retrieve total number of frames in video.
         video_total_frames = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
-        # Determine the indices for when to calculate new background.
-        background_chunk_index = int(video_total_frames / num_backgrounds)
 
-        # Iterate through each frame in the video.
-        for frame_num in range(video_total_frames):
-            print('Calculating background. Processing frame number: {0}/{1}.'.format(frame_num + 1, video_total_frames), end = '\r')
-            # Load frame into memory.
-            success, frame = capture.read()
-            # Check if frame was loaded successfully.
-            if success:
-                # Convert frame to grayscale.
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                # Copy frame into background if this is the first frame.
-                if frame_num == 0:
-                    background = frame.copy().astype(np.float32)
-                if method == 'brightest':
-                    # Create a mask where the background is compared to the frame in the loop and used to update the background where the frame is.
-                    mask = np.less(background, frame)
-                    # Update the background image where all of the pixels in the new frame are brighter than the background image.
-                    background[mask] = frame[mask]
-                elif method == 'darkest':
-                    # Create a mask where the background is compared to the frame in the loop and used to update the background where the frame is.
-                    mask = np.greater(background, frame)
-                    # Update the background image where all of the pixels in the new frame are darker than the background image.
-                    background[mask] = frame[mask]
-                # Compare the current number of frames iterated through to the number of backgrounds requested and add the background to the background array.
-                if frame_num > 0 and frame_num % background_chunk_index == 0:
-                    background_array.append(background.astype(np.uint8))
-                elif len(background_array) < num_backgrounds:
-                    if (frame_num + 1) == video_total_frames:
-                        background_array.append(background.astype(np.uint8))
-        print('Calculating background complete. Processing frame number: {0}/{1}.'.format(frame_num + 1, video_total_frames))
-        # Save the background into an external file if requested.
-        if save_background:
-            if num_backgrounds == 1:
+        if method == 'mode':
+            frame_size = (int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT)), int(capture.get(cv2.CAP_PROP_FRAME_WIDTH)))
+            background = np.zeros(frame_size)
+            pix = []
+            height_iterations = int(frame_size[1]/chunk_size[1])
+            if frame_size[1] % chunk_size[1] != 0:
+                height_iterations += 1
+            width_iterations = int(frame_size[0] / chunk_size[0])
+            if frame_size[0] % chunk_size[0] != 0:
+                width_iterations += 1
+            for i in range(height_iterations):
+                for j in range(width_iterations):
+                    print('Calculating background. Processing chunk number: {0}/{1}.'.format((j + 1) + (width_iterations * i), width_iterations * height_iterations), end = '\r')
+                    for frame_num in range(video_total_frames):
+                        if frame_num % frames_to_skip == 0:
+                            success, frame = capture.read()
+                            if success:
+                                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                                if i == height_iterations - 1 and j == width_iterations - 1:
+                                    pix.append(frame[i * chunk_size[1] : , j * chunk_size[0] : ])
+                                elif i == height_iterations - 1:
+                                    pix.append(frame[i * chunk_size[1] : , j * chunk_size[0] : j * chunk_size[0] + chunk_size[0]])
+                                elif j == width_iterations - 1:
+                                    pix.append(frame[i * chunk_size[1] : i * chunk_size[1] + chunk_size[1], j * chunk_size[0] : ])
+                                else:
+                                    pix.append(frame[i * chunk_size[1] : i * chunk_size[1] + chunk_size[1], j * chunk_size[0] : j * chunk_size[0] + chunk_size[0]])
+                    bg_pix = stats.mode(pix)[0]
+                    background[i * chunk_size[1] : i * chunk_size[1] + chunk_size[1], j * chunk_size[0] : j * chunk_size[0] + chunk_size[0]] = bg_pix
+                    pix = []
+                    capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            background = background.astype(np.uint8)
+            print('Calculating background complete. Processing chunk number: {0}/{1}.'.format((j + 1) + (width_iterations * i), width_iterations * height_iterations))
+            if save_background:
                 if save_path != None:
                     background_path = '{0}\\{1}_background.tif'.format(save_path, os.path.basename(video_path)[:-4])
                 else:
                     background_path = '{0}_background.tif'.format(video_path[:-4])
-                cv2.imwrite(background_path, background_array[0].astype(np.uint8))
-            else:
-                for i in range(len(background_array)):
-                    if save_path != None:
-                        background_path = '{0}\\{1}_background{2}.tif'.format(save_path, os.path.basename(video_path)[:-4], i + 1)
-                    else:
-                        background_path = '{0}_background{1}.tif'.format(video_path[:-4], i + 1)
-                    cv2.imwrite(background_path, background_array[i].astype(np.uint8))
+                cv2.imwrite(background_path, background)
+        else:
+            # Iterate through each frame in the video.
+            for frame_num in range(video_total_frames):
+                print('Calculating background. Processing frame number: {0}/{1}.'.format(frame_num + 1, video_total_frames), end = '\r')
+                if frame_num % frames_to_skip == 0:
+                    # Load frame into memory.
+                    success, frame = capture.read()
+                    # Check if frame was loaded successfully.
+                    if success:
+                        # Convert frame to grayscale.
+                        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                        # Copy frame into background if this is the first frame.
+                        if frame_num == 0:
+                            background = frame.copy().astype(np.float32)
+                        if method == 'brightest':
+                            # Create a mask where the background is compared to the frame in the loop and used to update the background where the frame is.
+                            mask = np.less(background, frame)
+                            # Update the background image where all of the pixels in the new frame are brighter than the background image.
+                            background[mask] = frame[mask]
+                        elif method == 'darkest':
+                            # Create a mask where the background is compared to the frame in the loop and used to update the background where the frame is.
+                            mask = np.greater(background, frame)
+                            # Update the background image where all of the pixels in the new frame are darker than the background image.
+                            background[mask] = frame[mask]
+            background = background.astype(np.uint8)
+            print('Calculating background complete. Processing frame number: {0}/{1}.'.format(frame_num + 1, video_total_frames))
+            # Save the background into an external file if requested.
+            if save_background:
+                if save_path != None:
+                    background_path = '{0}\\{1}_background.tif'.format(save_path, os.path.basename(video_path)[:-4])
+                else:
+                    background_path = '{0}_background.tif'.format(video_path[:-4])
+                cv2.imwrite(background_path, background)
     except:
         # Errors that may occur during the background calculation are handled.
         print('')
         if capture.isOpened():
             capture.release()
-        return [None * num_backgrounds]
-    # Unload video from memory.
-    capture.release()
-    # Return the calculated background(s) as the brightest set of pixels throughout the video. An array is returned to provide the number of backgrounds requested.
-    return background_array
+        return None
+    if capture.isOpened():
+        # Unload video from memory.
+        capture.release()
+    print('Total processing time: {0} seconds.'.format(time.time() - t0))
+    # Return the calculated background.
+    return background
 
 def calculate_next_coords(init_coords, radius, frame, angle = 0, n_angles = 20, range_angles = np.pi * 2.0 / 3.0, tail_calculation = True):
     '''
@@ -841,7 +884,7 @@ def track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes,
 
     # Create or load background image.
     if background_path is None:
-        background = calculate_background(video_path, save_path = save_path, save_background = save_background)[0]
+        background = calculate_background(video_path, save_path = save_path, save_background = save_background)
     else:
         background = cv2.imread(background_path, cv2.IMREAD_GRAYSCALE).astype(np.uint8)
 

@@ -2289,7 +2289,8 @@ class CalculateBackgroundThread(QThread):
         self.background = None
 
     def run(self):
-        self.background = ut.calculate_background(self.video_path)[0]
+        #self.background = ut.calculate_background(self.video_path)
+        self.background = ut.calculate_background(self.video_path, method = 'mode', chunk_size = [250, 250], frames_to_skip = 100)
         self.background_calculated_signal.emit(True)
 
 class PlottingWindow(QScrollArea):
@@ -2360,7 +2361,7 @@ class PlottingContent(QMainWindow):
             self.font_title.setPointSize(18)
             self.font_text.setPointSize(10)
             self.font_colour_parameters.setPointSize(10)
-            self.tracking_content_size = (2550, 1320)
+            self.plotting_content_size = (2550, 1320)
             self.main_window_x_offset = 10
             self.main_window_y_offset = 10
             self.main_window_spacing = 10
@@ -2640,6 +2641,7 @@ class PlottingContent(QMainWindow):
         self.preview_frame = QImage(frame.data, frame_width, frame_height, format)
         self.preview_frame = self.preview_frame.scaledToWidth(scaled_width)
         frame = cv2.resize(frame, dsize=(self.preview_frame.width(), self.preview_frame.height()), interpolation=cv2.INTER_CUBIC).copy()
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         self.preview_frame = QImage(frame.data, self.preview_frame.width(), self.preview_frame.height(), format)
     def update_preview_frame_window(self, clear = False):
         if not clear:
