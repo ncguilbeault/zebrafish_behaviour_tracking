@@ -1765,7 +1765,7 @@ class TrackingContent(QMainWindow):
             self.trigger_update_preview()
     def trigger_load_previous_tracking_parameters(self):
         try:
-            tracking_parameters = np.load('tracking_parameters.npy').item()
+            tracking_parameters = np.load('saved_pararmeters\\tracking_parameters.npy').item()
             self.n_tail_points = tracking_parameters['n_tail_points']
             self.dist_tail_points = tracking_parameters['dist_tail_points']
             self.dist_eyes = tracking_parameters['dist_eyes']
@@ -1794,7 +1794,7 @@ class TrackingContent(QMainWindow):
             'pixel_threshold' : self.pixel_threshold, 'frame_change_threshold' : self.frame_change_threshold,
             'eyes_threshold' : self.eyes_threshold, 'eyes_line_length' : self.eyes_line_length,
             'save_video' : self.save_video, 'extended_eyes_calculation' : self.extended_eyes_calculation}
-        np.save('tracking_parameters.npy', tracking_parameters)
+        np.save('saved_parameters\\tracking_parameters.npy', tracking_parameters)
     def trigger_track_video(self):
         if self.tracking_video_thread is None:
             # self.status_label.setText('Tracking Video...')
@@ -2251,6 +2251,235 @@ class TrackingContent(QMainWindow):
                     if self.preview_frame_window_label_size[1] > self.preview_frame_window_size[1]:
                         self.preview_frame_window.verticalScrollBar().setValue(self.preview_frame_window.verticalScrollBar().value() - new_frame_pos[1])
         event.accept()
+
+class TrackingParameters(QScrollArea):
+
+    def __init__(self):
+        super(TrackingParameters, self).__init__()
+        self.initUI()
+
+    def initUI():
+
+    def add_tracking_parameters_to_window(self):
+        new_x_label = self.preview_frame_window_size[0] + ((self.main_window_x_offset + (2 * self.main_window_spacing) + self.descriptors_window_size[0] + self.tracking_parameters_x_offset) / 2560) * self.main_window_width
+        new_width_label = (self.tracking_parameters_label_width / 2560) * self.main_window_width
+        new_height = (self.tracking_parameters_height / 1400) * self.main_window_height
+        new_x = new_x_label + new_width_label
+        new_width = (self.tracking_parameters_box_width / 2560) * self.main_window_width
+
+        self.tracking_n_tail_points_textbox_label = QLabel(self)
+        new_y = ((self.main_window_y_offset + self.tracking_parameters_y_offset + (0 * (self.tracking_parameters_height + self.tracking_parameters_y_spacing))) / 1400) * self.main_window_height
+        self.tracking_n_tail_points_textbox_label.move(new_x_label, new_y)
+        self.tracking_n_tail_points_textbox_label.resize(new_width_label, new_height)
+        self.tracking_n_tail_points_textbox_label.setText('Number of Tail Points: ')
+        self.tracking_n_tail_points_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.tracking_n_tail_points_textbox_label.setFont(self.font_text)
+        self.tracking_n_tail_points_textbox = QLineEdit(self)
+        self.tracking_n_tail_points_textbox.move(new_x, new_y)
+        self.tracking_n_tail_points_textbox.resize(new_width, new_height)
+        self.tracking_n_tail_points_textbox.setText('{0}'.format(self.n_tail_points))
+        self.tracking_n_tail_points_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.tracking_n_tail_points_textbox.setFont(self.font_text)
+        self.tracking_n_tail_points_textbox.returnPressed.connect(self.check_tracking_n_tail_points_textbox)
+
+        self.tracking_dist_tail_points_textbox_label = QLabel(self)
+        new_y = ((self.main_window_y_offset + self.tracking_parameters_y_offset + (1 * (self.tracking_parameters_height + self.tracking_parameters_y_spacing))) / 1400) * self.main_window_height
+        self.tracking_dist_tail_points_textbox_label.move(new_x_label, new_y)
+        self.tracking_dist_tail_points_textbox_label.resize(new_width_label, new_height)
+        self.tracking_dist_tail_points_textbox_label.setText('Distance Between Tail Points: ')
+        self.tracking_dist_tail_points_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.tracking_dist_tail_points_textbox_label.setFont(self.font_text)
+        self.tracking_dist_tail_points_textbox = QLineEdit(self)
+        self.tracking_dist_tail_points_textbox.move(new_x, new_y)
+        self.tracking_dist_tail_points_textbox.resize(new_width, new_height)
+        self.tracking_dist_tail_points_textbox.setText('{0}'.format(self.dist_tail_points))
+        self.tracking_dist_tail_points_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.tracking_dist_tail_points_textbox.setFont(self.font_text)
+        self.tracking_dist_tail_points_textbox.returnPressed.connect(self.check_tracking_dist_tail_points_textbox)
+
+        self.tracking_dist_eyes_textbox_label = QLabel(self)
+        new_y = ((self.main_window_y_offset + self.tracking_parameters_y_offset + (2 * (self.tracking_parameters_height + self.tracking_parameters_y_spacing))) / 1400) * self.main_window_height
+        self.tracking_dist_eyes_textbox_label.move(new_x_label, new_y)
+        self.tracking_dist_eyes_textbox_label.resize(new_width_label, new_height)
+        self.tracking_dist_eyes_textbox_label.setText('Distance Between Eyes: ')
+        self.tracking_dist_eyes_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.tracking_dist_eyes_textbox_label.setFont(self.font_text)
+        self.tracking_dist_eyes_textbox = QLineEdit(self)
+        self.tracking_dist_eyes_textbox.move(new_x, new_y)
+        self.tracking_dist_eyes_textbox.resize(new_width, new_height)
+        self.tracking_dist_eyes_textbox.setText('{0}'.format(self.dist_eyes))
+        self.tracking_dist_eyes_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.tracking_dist_eyes_textbox.setFont(self.font_text)
+        self.tracking_dist_eyes_textbox.returnPressed.connect(self.check_tracking_dist_eyes_textbox)
+
+        self.tracking_dist_swim_bladder_textbox_label = QLabel(self)
+        new_y = ((self.main_window_y_offset + self.tracking_parameters_y_offset + (3 * (self.tracking_parameters_height + self.tracking_parameters_y_spacing))) / 1400) * self.main_window_height
+        self.tracking_dist_swim_bladder_textbox_label.move(new_x_label, new_y)
+        self.tracking_dist_swim_bladder_textbox_label.resize(new_width_label, new_height)
+        self.tracking_dist_swim_bladder_textbox_label.setText('Distance Between Eyes and Swim Bladder: ')
+        self.tracking_dist_swim_bladder_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.tracking_dist_swim_bladder_textbox_label.setFont(self.font_text)
+        self.tracking_dist_swim_bladder_textbox = QLineEdit(self)
+        self.tracking_dist_swim_bladder_textbox.move(new_x, new_y)
+        self.tracking_dist_swim_bladder_textbox.resize(new_width, new_height)
+        self.tracking_dist_swim_bladder_textbox.setText('{0}'.format(self.dist_swim_bladder))
+        self.tracking_dist_swim_bladder_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.tracking_dist_swim_bladder_textbox.setFont(self.font_text)
+        self.tracking_dist_swim_bladder_textbox.returnPressed.connect(self.check_tracking_dist_swim_bladder_textbox)
+
+        self.tracking_frame_batch_size_textbox_label = QLabel(self)
+        new_y = ((self.main_window_y_offset + self.tracking_parameters_y_offset + (4 * (self.tracking_parameters_height + self.tracking_parameters_y_spacing))) / 1400) * self.main_window_height
+        self.tracking_frame_batch_size_textbox_label.move(new_x_label, new_y)
+        self.tracking_frame_batch_size_textbox_label.resize(new_width_label, new_height)
+        self.tracking_frame_batch_size_textbox_label.setText('Frame Batch Size: ')
+        self.tracking_frame_batch_size_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.tracking_frame_batch_size_textbox_label.setFont(self.font_text)
+        self.tracking_frame_batch_size_textbox = QLineEdit(self)
+        self.tracking_frame_batch_size_textbox.move(new_x, new_y)
+        self.tracking_frame_batch_size_textbox.resize(new_width, new_height)
+        self.tracking_frame_batch_size_textbox.setText('{0}'.format(self.frame_batch_size))
+        self.tracking_frame_batch_size_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.tracking_frame_batch_size_textbox.setFont(self.font_text)
+        self.tracking_frame_batch_size_textbox.returnPressed.connect(self.check_tracking_frame_batch_size_textbox)
+
+        self.tracking_starting_frame_textbox_label = QLabel(self)
+        new_y = ((self.main_window_y_offset + self.tracking_parameters_y_offset + (5 * (self.tracking_parameters_height + self.tracking_parameters_y_spacing))) / 1400) * self.main_window_height
+        self.tracking_starting_frame_textbox_label.move(new_x_label, new_y)
+        self.tracking_starting_frame_textbox_label.resize(new_width_label, new_height)
+        self.tracking_starting_frame_textbox_label.setText('Starting Frame: ')
+        self.tracking_starting_frame_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.tracking_starting_frame_textbox_label.setFont(self.font_text)
+        self.tracking_starting_frame_textbox = QLineEdit(self)
+        self.tracking_starting_frame_textbox.move(new_x, new_y)
+        self.tracking_starting_frame_textbox.resize(new_width, new_height)
+        self.tracking_starting_frame_textbox.setText('{0}'.format(self.starting_frame))
+        self.tracking_starting_frame_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.tracking_starting_frame_textbox.setFont(self.font_text)
+        self.tracking_starting_frame_textbox.returnPressed.connect(self.check_tracking_starting_frame_textbox)
+
+        self.tracking_n_frames_textbox_label = QLabel(self)
+        new_y = ((self.main_window_y_offset + self.tracking_parameters_y_offset + (6 * (self.tracking_parameters_height + self.tracking_parameters_y_spacing))) / 1400) * self.main_window_height
+        self.tracking_n_frames_textbox_label.move(new_x_label, new_y)
+        self.tracking_n_frames_textbox_label.resize(new_width_label, new_height)
+        self.tracking_n_frames_textbox_label.setText('Number of Frames to Track: ')
+        self.tracking_n_frames_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.tracking_n_frames_textbox_label.setFont(self.font_text)
+        self.tracking_n_frames_textbox = QLineEdit(self)
+        self.tracking_n_frames_textbox.move(new_x, new_y)
+        self.tracking_n_frames_textbox.resize(new_width, new_height)
+        self.tracking_n_frames_textbox.setText('{0}'.format(self.n_frames))
+        self.tracking_n_frames_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.tracking_n_frames_textbox.setFont(self.font_text)
+        self.tracking_n_frames_textbox.returnPressed.connect(self.check_tracking_n_frames_textbox)
+
+        self.tracking_line_length_textbox_label = QLabel(self)
+        new_y = ((self.main_window_y_offset + self.tracking_parameters_y_offset + (7 * (self.tracking_parameters_height + self.tracking_parameters_y_spacing))) / 1400) * self.main_window_height
+        self.tracking_line_length_textbox_label.move(new_x_label, new_y)
+        self.tracking_line_length_textbox_label.resize(new_width_label, new_height)
+        self.tracking_line_length_textbox_label.setText('Line Length: ')
+        self.tracking_line_length_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.tracking_line_length_textbox_label.setFont(self.font_text)
+        self.tracking_line_length_textbox = QLineEdit(self)
+        self.tracking_line_length_textbox.move(new_x, new_y)
+        self.tracking_line_length_textbox.resize(new_width, new_height)
+        self.tracking_line_length_textbox.setText('{0}'.format(self.line_length))
+        self.tracking_line_length_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.tracking_line_length_textbox.setFont(self.font_text)
+        self.tracking_line_length_textbox.returnPressed.connect(self.check_tracking_line_length_textbox)
+
+        self.tracking_pixel_threshold_textbox_label = QLabel(self)
+        new_y = ((self.main_window_y_offset + self.tracking_parameters_y_offset + (8 * (self.tracking_parameters_height + self.tracking_parameters_y_spacing))) / 1400) * self.main_window_height
+        self.tracking_pixel_threshold_textbox_label.move(new_x_label, new_y)
+        self.tracking_pixel_threshold_textbox_label.resize(new_width_label, new_height)
+        self.tracking_pixel_threshold_textbox_label.setText('Pixel Threshold: ')
+        self.tracking_pixel_threshold_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.tracking_pixel_threshold_textbox_label.setFont(self.font_text)
+        self.tracking_pixel_threshold_textbox = QLineEdit(self)
+        self.tracking_pixel_threshold_textbox.move(new_x, new_y)
+        self.tracking_pixel_threshold_textbox.resize(new_width, new_height)
+        self.tracking_pixel_threshold_textbox.setText('{0}'.format(self.pixel_threshold))
+        self.tracking_pixel_threshold_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.tracking_pixel_threshold_textbox.setFont(self.font_text)
+        self.tracking_pixel_threshold_textbox.returnPressed.connect(self.check_tracking_pixel_threshold_textbox)
+
+        self.tracking_frame_change_threshold_textbox_label = QLabel(self)
+        new_y = ((self.main_window_y_offset + self.tracking_parameters_y_offset + (9 * (self.tracking_parameters_height + self.tracking_parameters_y_spacing))) / 1400) * self.main_window_height
+        self.tracking_frame_change_threshold_textbox_label.move(new_x_label, new_y)
+        self.tracking_frame_change_threshold_textbox_label.resize(new_width_label, new_height)
+        self.tracking_frame_change_threshold_textbox_label.setText('Frame Change Threshold: ')
+        self.tracking_frame_change_threshold_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.tracking_frame_change_threshold_textbox_label.setFont(self.font_text)
+        self.tracking_frame_change_threshold_textbox = QLineEdit(self)
+        self.tracking_frame_change_threshold_textbox.move(new_x, new_y)
+        self.tracking_frame_change_threshold_textbox.resize(new_width, new_height)
+        self.tracking_frame_change_threshold_textbox.setText('{0}'.format(self.frame_change_threshold))
+        self.tracking_frame_change_threshold_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.tracking_frame_change_threshold_textbox.setFont(self.font_text)
+        self.tracking_frame_change_threshold_textbox.returnPressed.connect(self.check_tracking_frame_change_threshold_textbox)
+
+        self.eyes_threshold_textbox_label = QLabel(self)
+        new_y = ((self.main_window_y_offset + self.tracking_parameters_y_offset + (10 * (self.tracking_parameters_height + self.tracking_parameters_y_spacing))) / 1400) * self.main_window_height
+        self.eyes_threshold_textbox_label.move(new_x_label, new_y)
+        self.eyes_threshold_textbox_label.resize(new_width_label, new_height)
+        self.eyes_threshold_textbox_label.setText('Eyes Threshold: ')
+        self.eyes_threshold_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.eyes_threshold_textbox_label.setFont(self.font_text)
+        self.eyes_threshold_textbox = QLineEdit(self)
+        self.eyes_threshold_textbox.move(new_x, new_y)
+        self.eyes_threshold_textbox.resize(new_width, new_height)
+        self.eyes_threshold_textbox.setText('{0}'.format(self.eyes_threshold))
+        self.eyes_threshold_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.eyes_threshold_textbox.setFont(self.font_text)
+        self.eyes_threshold_textbox.returnPressed.connect(self.check_eyes_threshold_textbox)
+
+        self.eyes_line_length_textbox_label = QLabel(self)
+        new_y = ((self.main_window_y_offset + self.tracking_parameters_y_offset + (11 * (self.tracking_parameters_height + self.tracking_parameters_y_spacing))) / 1400) * self.main_window_height
+        self.eyes_line_length_textbox_label.move(new_x_label, new_y)
+        self.eyes_line_length_textbox_label.resize(new_width_label, new_height)
+        self.eyes_line_length_textbox_label.setText('Eyes Line Length: ')
+        self.eyes_line_length_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.eyes_line_length_textbox_label.setFont(self.font_text)
+        self.eyes_line_length_textbox = QLineEdit(self)
+        self.eyes_line_length_textbox.move(new_x, new_y)
+        self.eyes_line_length_textbox.resize(new_width, new_height)
+        self.eyes_line_length_textbox.setText('{0}'.format(self.eyes_threshold))
+        self.eyes_line_length_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.eyes_line_length_textbox.setFont(self.font_text)
+        self.eyes_line_length_textbox.returnPressed.connect(self.check_eyes_line_length_textbox)
+
+        self.save_tracked_video_combobox_label = QLabel(self)
+        new_y = ((self.main_window_y_offset + self.tracking_parameters_y_offset + (12 * (self.tracking_parameters_height + self.tracking_parameters_y_spacing))) / 1400) * self.main_window_height
+        self.save_tracked_video_combobox_label.move(new_x_label, new_y)
+        self.save_tracked_video_combobox_label.resize(new_width_label, new_height)
+        self.save_tracked_video_combobox_label.setText('Save Tracked Video: ')
+        self.save_tracked_video_combobox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.save_tracked_video_combobox_label.setFont(self.font_text)
+        self.save_tracked_video_combobox = QComboBox(self)
+        self.save_tracked_video_combobox.addItem('True')
+        self.save_tracked_video_combobox.addItem('False')
+        self.save_tracked_video_combobox.move(new_x, new_y)
+        self.save_tracked_video_combobox.resize(new_width, new_height)
+        self.save_tracked_video_combobox.setCurrentIndex(1)
+        self.save_tracked_video_combobox.currentIndexChanged.connect(self.check_save_tracked_video_combobox)
+
+        self.extended_eyes_calculation_combobox_label = QLabel(self)
+        new_y = ((self.main_window_y_offset + self.tracking_parameters_y_offset + (13 * (self.tracking_parameters_height + self.tracking_parameters_y_spacing))) / 1400) * self.main_window_height
+        self.extended_eyes_calculation_combobox_label.move(new_x_label, new_y)
+        self.extended_eyes_calculation_combobox_label.resize(new_width_label, new_height)
+        self.extended_eyes_calculation_combobox_label.setText('Extended Eyes Calculation: ')
+        self.extended_eyes_calculation_combobox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.extended_eyes_calculation_combobox_label.setFont(self.font_text)
+        self.extended_eyes_calculation_combobox = QComboBox(self)
+        self.extended_eyes_calculation_combobox.addItem('True')
+        self.extended_eyes_calculation_combobox.addItem('False')
+        self.extended_eyes_calculation_combobox.move(new_x, new_y)
+        self.extended_eyes_calculation_combobox.resize(new_width, new_height)
+        self.extended_eyes_calculation_combobox.setCurrentIndex(1)
+        self.extended_eyes_calculation_combobox.currentIndexChanged.connect(self.check_extended_eyes_calculation_combobox)
+
+        self.trigger_load_default_tracking_parameters()
+        self.trigger_load_default_colours()
+        self.update_tracking_parameters(inactivate = True)
 
 class TrackVideoThread(QThread):
 
