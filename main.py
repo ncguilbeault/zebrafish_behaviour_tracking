@@ -359,6 +359,7 @@ class TrackingContent(QMainWindow):
         self.play_video_slow_speed = False
         self.play_video_medium_speed = False
         self.play_video_max_speed = False
+        self.video_playback_thread = None
 
     # Defining Get Functions
     def get_main_window_attributes(self):
@@ -1911,8 +1912,10 @@ class TrackingContent(QMainWindow):
         colours = {'colours' : self.colours}
         np.save('saved_parameters\\colour_parameters.npy', colours)
     def trigger_pause_video(self):
-        if self.video_playback_thread:
+        if self.video_playback_thread is not None:
             self.video_playback_thread.close()
+            self.video_playback_thread.wait()
+            self.video_playback_thread = None
         if self.play_video_slow_speed:
             self.play_video_slow_speed = False
         if self.play_video_medium_speed:
@@ -1925,33 +1928,24 @@ class TrackingContent(QMainWindow):
             if self.frame_number <= self.video_n_frames:
                 self.trigger_update_preview()
             else:
-                self.video_playback_thread.close()
                 self.frame_number = 1
                 self.trigger_update_preview()
-                self.video_playback_thread.start_thread = True
-                self.video_playback_thread.start()
     def trigger_play_video_medium_speed(self):
         if self.play_video_medium_speed:
-            self.frame_number += 10
+            self.frame_number += int(self.video_fps / 10)
             if self.frame_number <= self.video_n_frames:
                 self.trigger_update_preview()
             else:
-                self.video_playback_thread.close()
                 self.frame_number = 1
                 self.trigger_update_preview()
-                self.video_playback_thread.start_thread = True
-                self.video_playback_thread.start()
     def trigger_play_video_max_speed(self):
         if self.play_video_max_speed:
-            self.frame_number += 50
+            self.frame_number += int(self.video_fps)
             if self.frame_number <= self.video_n_frames:
                 self.trigger_update_preview()
             else:
-                self.video_playback_thread.close()
                 self.frame_number = 1
                 self.trigger_update_preview()
-                self.video_playback_thread.start_thread = True
-                self.video_playback_thread.start()
 
     # Defining Check Functions
     def check_preview_frame_number_textbox(self):
@@ -2156,17 +2150,25 @@ class TrackingContent(QMainWindow):
             if self.play_video_medium_speed:
                 self.play_video_medium_speed = False
                 self.play_video_medium_speed_button.setChecked(False)
-                self.video_playback_thread.close()
+                if self.video_playback_thread is not None:
+                    self.video_playback_thread.close()
+                    self.video_playback_thread.wait()
+                    self.video_playback_thread = None
             if self.play_video_max_speed:
                 self.play_video_max_speed = False
                 self.play_video_max_speed_button.setChecked(False)
-                self.video_playback_thread.close()
-            self.video_playback_thread = VideoPlaybackThread()
-            self.video_playback_thread.video_fps = self.video_fps
-            self.video_playback_thread.start()
+                if self.video_playback_thread is not None:
+                    self.video_playback_thread.close()
+                    self.video_playback_thread.wait()
+                    self.video_playback_thread = None
+            if self.video_playback_thread is None:
+                self.video_playback_thread = VideoPlaybackThread()
+                self.video_playback_thread.video_fps = self.video_fps
+                self.video_playback_thread.start()
             self.video_playback_thread.time_signal.connect(self.trigger_play_video_slow_speed)
             self.play_video_slow_speed = True
         else:
+            self.play_video_slow_speed = False
             self.pause_video_button.setChecked(True)
             self.trigger_pause_video()
     def check_play_video_medium_speed_button(self):
@@ -2176,17 +2178,25 @@ class TrackingContent(QMainWindow):
             if self.play_video_slow_speed:
                 self.play_video_slow_speed = False
                 self.play_video_slow_speed_button.setChecked(False)
-                self.video_playback_thread.close()
+                if self.video_playback_thread is not None:
+                    self.video_playback_thread.close()
+                    self.video_playback_thread.wait()
+                    self.video_playback_thread = None
             if self.play_video_max_speed:
                 self.play_video_max_speed = False
                 self.play_video_max_speed_button.setChecked(False)
-                self.video_playback_thread.close()
-            self.video_playback_thread = VideoPlaybackThread()
-            self.video_playback_thread.video_fps = self.video_fps
-            self.video_playback_thread.start()
+                if self.video_playback_thread is not None:
+                    self.video_playback_thread.close()
+                    self.video_playback_thread.wait()
+                    self.video_playback_thread = None
+            if self.video_playback_thread is None:
+                self.video_playback_thread = VideoPlaybackThread()
+                self.video_playback_thread.video_fps = self.video_fps
+                self.video_playback_thread.start()
             self.video_playback_thread.time_signal.connect(self.trigger_play_video_medium_speed)
             self.play_video_medium_speed = True
         else:
+            self.play_video_medium_speed = False
             self.pause_video_button.setChecked(True)
             self.trigger_pause_video()
     def check_play_video_max_speed_button(self):
@@ -2196,17 +2206,25 @@ class TrackingContent(QMainWindow):
             if self.play_video_slow_speed:
                 self.play_video_slow_speed = False
                 self.play_video_slow_speed_button.setChecked(False)
-                self.video_playback_thread.close()
+                if self.video_playback_thread is not None:
+                    self.video_playback_thread.close()
+                    self.video_playback_thread.wait()
+                    self.video_playback_thread = None
             if self.play_video_medium_speed:
                 self.play_video_medium_speed = False
                 self.play_video_medium_speed_button.setChecked(False)
-                self.video_playback_thread.close()
-            self.video_playback_thread = VideoPlaybackThread()
-            self.video_playback_thread.video_fps = self.video_fps
-            self.video_playback_thread.start()
+                if self.video_playback_thread is not None:
+                    self.video_playback_thread.close()
+                    self.video_playback_thread.wait()
+                    self.video_playback_thread = None
+            if self.video_playback_thread is None:
+                self.video_playback_thread = VideoPlaybackThread()
+                self.video_playback_thread.video_fps = self.video_fps
+                self.video_playback_thread.start()
             self.video_playback_thread.time_signal.connect(self.trigger_play_video_max_speed)
             self.play_video_max_speed = True
         else:
+            self.play_video_max_speed = False
             self.pause_video_button.setChecked(True)
             self.trigger_pause_video()
     def check_video_time_textbox(self):
@@ -2629,6 +2647,7 @@ class PlottingContent(QMainWindow):
         self.play_video_medium_speed = False
         self.play_video_max_speed = False
         self.data_plot = None
+        self.video_playback_thread = None
 
     def get_main_window_attributes(self):
         self.main_window_width = QDesktopWidget().availableGeometry().width()
@@ -3065,8 +3084,10 @@ class PlottingContent(QMainWindow):
         self.update_frame_window_slider_position()
         self.update_data_plot_window(clear = True)
     def trigger_pause_video(self):
-        if self.video_playback_thread:
+        if self.video_playback_thread is not None:
             self.video_playback_thread.close()
+            self.video_playback_thread.wait()
+            self.video_playback_thread = None
         if self.play_video_slow_speed:
             self.play_video_slow_speed = False
         if self.play_video_medium_speed:
@@ -3079,33 +3100,24 @@ class PlottingContent(QMainWindow):
             if self.frame_number <= self.video_n_frames:
                 self.trigger_update_preview()
             else:
-                self.video_playback_thread.close()
                 self.frame_number = 1
                 self.trigger_update_preview()
-                self.video_playback_thread.start_thread = True
-                self.video_playback_thread.start()
     def trigger_play_video_medium_speed(self):
         if self.play_video_medium_speed:
-            self.frame_number += 10
+            self.frame_number += int(self.video_fps / 10)
             if self.frame_number <= self.video_n_frames:
                 self.trigger_update_preview()
             else:
-                self.video_playback_thread.close()
                 self.frame_number = 1
                 self.trigger_update_preview()
-                self.video_playback_thread.start_thread = True
-                self.video_playback_thread.start()
     def trigger_play_video_max_speed(self):
         if self.play_video_max_speed:
-            self.frame_number += 50
+            self.frame_number += int(self.video_fps)
             if self.frame_number <= self.video_n_frames:
                 self.trigger_update_preview()
             else:
-                self.video_playback_thread.close()
                 self.frame_number = 1
                 self.trigger_update_preview()
-                self.video_playback_thread.start_thread = True
-                self.video_playback_thread.start()
 
     def check_preview_frame_number_textbox(self):
         if self.preview_frame_number_textbox.text().isdigit():
@@ -3183,17 +3195,25 @@ class PlottingContent(QMainWindow):
             if self.play_video_medium_speed:
                 self.play_video_medium_speed = False
                 self.play_video_medium_speed_button.setChecked(False)
-                self.video_playback_thread.close()
+                if self.video_playback_thread is not None:
+                    self.video_playback_thread.close()
+                    self.video_playback_thread.wait()
+                    self.video_playback_thread = None
             if self.play_video_max_speed:
                 self.play_video_max_speed = False
                 self.play_video_max_speed_button.setChecked(False)
-                self.video_playback_thread.close()
-            self.video_playback_thread = VideoPlaybackThread()
-            self.video_playback_thread.video_fps = self.video_fps
-            self.video_playback_thread.start()
+                if self.video_playback_thread is not None:
+                    self.video_playback_thread.close()
+                    self.video_playback_thread.wait()
+                    self.video_playback_thread = None
+            if self.video_playback_thread is None:
+                self.video_playback_thread = VideoPlaybackThread()
+                self.video_playback_thread.video_fps = self.video_fps
+                self.video_playback_thread.start()
             self.video_playback_thread.time_signal.connect(self.trigger_play_video_slow_speed)
             self.play_video_slow_speed = True
         else:
+            self.play_video_slow_speed = False
             self.pause_video_button.setChecked(True)
             self.trigger_pause_video()
     def check_play_video_medium_speed_button(self):
@@ -3203,17 +3223,25 @@ class PlottingContent(QMainWindow):
             if self.play_video_slow_speed:
                 self.play_video_slow_speed = False
                 self.play_video_slow_speed_button.setChecked(False)
-                self.video_playback_thread.close()
+                if self.video_playback_thread is not None:
+                    self.video_playback_thread.close()
+                    self.video_playback_thread.wait()
+                    self.video_playback_thread = None
             if self.play_video_max_speed:
                 self.play_video_max_speed = False
                 self.play_video_max_speed_button.setChecked(False)
-                self.video_playback_thread.close()
-            self.video_playback_thread = VideoPlaybackThread()
-            self.video_playback_thread.video_fps = self.video_fps
-            self.video_playback_thread.start()
+                if self.video_playback_thread is not None:
+                    self.video_playback_thread.close()
+                    self.video_playback_thread.wait()
+                    self.video_playback_thread = None
+            if self.video_playback_thread is None:
+                self.video_playback_thread = VideoPlaybackThread()
+                self.video_playback_thread.video_fps = self.video_fps
+                self.video_playback_thread.start()
             self.video_playback_thread.time_signal.connect(self.trigger_play_video_medium_speed)
             self.play_video_medium_speed = True
         else:
+            self.play_video_medium_speed = False
             self.pause_video_button.setChecked(True)
             self.trigger_pause_video()
     def check_play_video_max_speed_button(self):
@@ -3223,17 +3251,25 @@ class PlottingContent(QMainWindow):
             if self.play_video_slow_speed:
                 self.play_video_slow_speed = False
                 self.play_video_slow_speed_button.setChecked(False)
-                self.video_playback_thread.close()
+                if self.video_playback_thread is not None:
+                    self.video_playback_thread.close()
+                    self.video_playback_thread.wait()
+                    self.video_playback_thread = None
             if self.play_video_medium_speed:
                 self.play_video_medium_speed = False
                 self.play_video_medium_speed_button.setChecked(False)
-                self.video_playback_thread.close()
-            self.video_playback_thread = VideoPlaybackThread()
-            self.video_playback_thread.video_fps = self.video_fps
-            self.video_playback_thread.start()
+                if self.video_playback_thread is not None:
+                    self.video_playback_thread.close()
+                    self.video_playback_thread.wait()
+                    self.video_playback_thread = None
+            if self.video_playback_thread is None:
+                self.video_playback_thread = VideoPlaybackThread()
+                self.video_playback_thread.video_fps = self.video_fps
+                self.video_playback_thread.start()
             self.video_playback_thread.time_signal.connect(self.trigger_play_video_max_speed)
             self.play_video_max_speed = True
         else:
+            self.play_video_max_speed = False
             self.pause_video_button.setChecked(True)
             self.trigger_pause_video()
     def check_video_time_textbox(self):
@@ -3432,7 +3468,7 @@ class VideoPlaybackThread(QThread):
         while self.start_thread:
             time_now = time.perf_counter()
             self.time_signal.emit(time_now)
-            time.sleep(2/self.video_fps)
+            time.sleep(0.1)
 
     def close(self):
         self.start_thread = False
