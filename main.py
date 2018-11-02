@@ -137,6 +137,7 @@ class TrackingWindow(QScrollArea):
         self.main_window_height = main_window_height
         self.tracking_content = TrackingContent(self.main_window_width, self.main_window_height)
         self.setWidget(self.tracking_content)
+        self.setFrameStyle(QFrame.NoFrame)
 
 class TrackingContent(QMainWindow):
 
@@ -150,6 +151,9 @@ class TrackingContent(QMainWindow):
         self.initialize_layout()
         self.initialize_class_variables()
         self.add_preview_frame_window()
+        self.add_loaded_videos_window()
+        self.add_loaded_videos_listbox_to_window()
+        self.add_loaded_videos_buttons()
         self.add_descriptors_window()
         self.add_descriptors_to_window()
         self.add_frame_window_slider()
@@ -173,12 +177,14 @@ class TrackingContent(QMainWindow):
     def initialize_layout(self):
         self.font_title = QFont()
         self.font_text = QFont()
+        self.font_loaded_videos_buttons = QFont()
         self.font_colour_parameters = QFont()
 
         if self.main_window_width == 1920 and self.main_window_height == 1020:
             self.font_title.setPointSize(14)
             self.font_text.setPointSize(8)
             self.font_colour_parameters.setPointSize(7)
+            self.font_loaded_videos_buttons.setPointSize(7)
             self.tracking_content_size = (1910, 920)
             self.main_window_x_offset = 10
             self.main_window_y_offset = 15
@@ -187,7 +193,14 @@ class TrackingContent(QMainWindow):
             self.preview_frame_window_x_offset = 30
             self.preview_frame_window_y_offset = 30
             self.preview_frame_window_label_size = (self.preview_frame_window_size[0] - self.preview_frame_window_x_offset, self.preview_frame_window_size[1] - self.preview_frame_window_y_offset)
-            self.descriptors_window_size = (845, 900)
+            self.loaded_videos_window_size = (845, 490)
+            self.loaded_videos_x_offset = 20
+            self.loaded_videos_y_offset = 70
+            self.loaded_videos_y_spacing = 10
+            self.loaded_videos_x_spacing = 12.5
+            self.loaded_videos_listbox_size = (805, 160)
+            self.loaded_videos_button_size = (260, 50)
+            self.descriptors_window_size = (845, 400)
             self.descriptors_x_offset = 10
             self.descriptors_y_offset = 75
             self.descriptors_height = 30
@@ -229,10 +242,10 @@ class TrackingContent(QMainWindow):
             self.tracking_parameters_window_size = (600, 900)
             self.tracking_parameters_label_width = 420
             self.tracking_parameters_x_offset = 10
-            self.tracking_parameters_y_offset = 75
-            self.tracking_parameters_height = 30
-            self.tracking_parameters_box_width = 120
-            self.tracking_parameters_y_spacing = 10
+            self.tracking_parameters_y_offset = 70
+            self.tracking_parameters_height = 22
+            self.tracking_parameters_box_width = 100
+            self.tracking_parameters_y_spacing = 17
             self.tracking_parameters_button_size = (500, 50)
             self.colour_parameters_window_size = (995, 330)
             self.colour_parameters_button_size = (220, 60)
@@ -304,7 +317,6 @@ class TrackingContent(QMainWindow):
             self.tracking_parameters_x_offset = 10
             self.tracking_parameters_y_offset = 50
             self.tracking_parameters_height = 22
-            # self.tracking_parameters_box_width = 145
             self.tracking_parameters_box_width = 100
             self.tracking_parameters_y_spacing = 17
             self.tracking_parameters_button_size = (400, 80)
@@ -328,13 +340,11 @@ class TrackingContent(QMainWindow):
         self.video_path_folder = None
         self.video_n_frames = 0
         self.video_fps = 0
-        self.video_format = None
         self.video_frame_width = 0
         self.video_frame_height = 0
         self.frame_number = 1
         self.background_path = None
         self.background_path_basename = None
-        self.background_path_folder = None
         self.save_path = None
         self.preview_background = False
         self.preview_background_subtracted_frame = False
@@ -371,6 +381,11 @@ class TrackingContent(QMainWindow):
         self.background_calculation_frame_chunk_width = 0
         self.background_calculation_frame_chunk_height = 0
         self.background_calculation_frames_to_skip = 0
+        self.initial_pixel_search = None
+        self.invert_threshold = None
+        self.range_angles = None
+        self.loaded_videos_and_parameters_dict = {}
+        self.tracking_parameters_dict = {}
 
     # Defining Get Functions
     def get_video_attributes(self):
@@ -378,10 +393,8 @@ class TrackingContent(QMainWindow):
         self.video_path_basename = os.path.basename(self.video_path)
         self.video_n_frames = ut.get_total_frame_number_from_video(self.video_path)
         self.video_fps = ut.get_fps_from_video(self.video_path)
-        self.video_format = ut.get_video_format_from_video(self.video_path)
         self.video_frame_width, self.video_frame_height = ut.get_frame_size_from_video(self.video_path)
     def get_background_attributes(self):
-        self.background_path_folder = os.path.dirname(self.background_path)
         self.background_path_basename = os.path.basename(self.background_path)
         self.background_height, self.background_width = self.background.shape
 
@@ -391,9 +404,9 @@ class TrackingContent(QMainWindow):
         new_y = (self.main_window_y_offset / 1400) * self.main_window_height
 
         self.preview_frame_window = QScrollArea(self)
-        self.preview_frame_window.setFrameShape(QFrame.Panel)
-        self.preview_frame_window.setFrameShadow(QFrame.Sunken)
-        self.preview_frame_window.setLineWidth(5)
+        self.preview_frame_window.setFrameShape(QFrame.StyledPanel)
+        # self.preview_frame_window.setFrameShadow(QFrame.Sunken)
+        # self.preview_frame_window.setLineWidth(5)
         self.preview_frame_window.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.preview_frame_window.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.preview_frame_window.move(new_x, new_y)
@@ -407,17 +420,141 @@ class TrackingContent(QMainWindow):
         self.preview_frame_window_label.setFont(self.font_title)
         self.preview_frame_window_label.mousePressEvent = self.event_preview_frame_window_label_mouse_clicked
         self.preview_frame_window_label.mouseMoveEvent = self.event_preview_frame_window_label_mouse_moved
+        self.preview_frame_window.wheelEvent = self.event_preview_frame_window_wheel_scrolled
         self.preview_frame_window.setWidget(self.preview_frame_window_label)
-    def add_descriptors_window(self):
+    def add_loaded_videos_window(self):
         new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing) / 2560) * self.main_window_width
         new_y = (self.main_window_y_offset / 1400) * self.main_window_height
+        new_width = (self.loaded_videos_window_size[0] / 2560) * self.main_window_width
+        new_height = (self.loaded_videos_window_size[1] / 1400) * self.main_window_height
+
+        self.loaded_videos_window = QLabel(self)
+        self.loaded_videos_window.setFrameShape(QFrame.StyledPanel)
+        # self.loaded_videos_window.setFrameShadow(QFrame.Sunken)
+        # self.loaded_videos_window.setLineWidth(5)
+        self.loaded_videos_window.move(new_x, new_y)
+        self.loaded_videos_window.resize(new_width, new_height)
+        self.loaded_videos_window.setText('Loaded Videos')
+        self.loaded_videos_window.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+        self.loaded_videos_window.setFont(self.font_title)
+    def add_loaded_videos_listbox_to_window(self):
+        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset) / 2560) * self.main_window_width
+        new_y = ((self.main_window_y_offset + self.loaded_videos_y_offset) / 1400) * self.main_window_height
+        new_width = (self.loaded_videos_listbox_size[0] / 2560) * self.main_window_width
+        new_height = (self.loaded_videos_listbox_size[1] / 1400) * self.main_window_height
+
+        self.loaded_videos_listbox = QListWidget(self)
+        self.loaded_videos_listbox.setFrameShape(QFrame.StyledPanel)
+        # self.loaded_videos_listbox.setFrameShadow(QFrame.Sunken)
+        # self.loaded_videos_listbox.setLineWidth(5)
+        self.loaded_videos_listbox.move(new_x, new_y)
+        self.loaded_videos_listbox.resize(new_width, new_height)
+        # self.loaded_videos_listbox.setEnabled(False)
+        self.setStyleSheet( """QListWidget{background-color: rgb(240, 240, 240);}""")
+        self.loaded_videos_listbox.itemClicked.connect(self.check_loaded_videos_listbox_item_clicked)
+    def add_loaded_videos_buttons(self):
+        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (0 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
+        new_y = ((self.main_window_y_offset + self.loaded_videos_y_offset + self.loaded_videos_listbox_size[1] + (0 * (self.loaded_videos_y_spacing + self.loaded_videos_button_size[1])) + self.loaded_videos_y_spacing) / 1400) * self.main_window_height
+        new_width = (self.loaded_videos_button_size[0] / 2560) * self.main_window_width
+        new_height = (self.loaded_videos_button_size[1] / 1400) * self.main_window_height
+
+        self.add_video_button = QPushButton('Add Video', self)
+        self.add_video_button.move(new_x, new_y)
+        self.add_video_button.resize(new_width, new_height)
+        self.add_video_button.setFont(self.font_loaded_videos_buttons)
+        self.add_video_button.clicked.connect(self.check_add_video_button)
+
+        self.remove_selected_video_button = QPushButton('Remove Selected Video', self)
+        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (1 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
+        self.remove_selected_video_button.move(new_x, new_y)
+        self.remove_selected_video_button.resize(new_width, new_height)
+        self.remove_selected_video_button.setFont(self.font_loaded_videos_buttons)
+        self.remove_selected_video_button.clicked.connect(self.check_remove_selected_video_button)
+
+        self.remove_all_videos_button = QPushButton('Remove All Videos', self)
+        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (2 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
+        self.remove_all_videos_button.move(new_x, new_y)
+        self.remove_all_videos_button.resize(new_width, new_height)
+        self.remove_all_videos_button.setFont(self.font_loaded_videos_buttons)
+        self.remove_all_videos_button.clicked.connect(self.check_remove_all_videos_button)
+
+        self.add_background_button = QPushButton('Add Background', self)
+        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (0 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
+        new_y = ((self.main_window_y_offset + self.loaded_videos_y_offset + self.loaded_videos_listbox_size[1] + (1 * (self.loaded_videos_y_spacing + self.loaded_videos_button_size[1])) + self.loaded_videos_y_spacing) / 1400) * self.main_window_height
+        self.add_background_button.move(new_x, new_y)
+        self.add_background_button.resize(new_width, new_height)
+        self.add_background_button.setFont(self.font_loaded_videos_buttons)
+        # self.update_background_button.clicked.connect(self.check_update_background_button)
+
+        self.calculate_background_button = QPushButton('Calculate Background', self)
+        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (1 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
+        # new_y = ((self.main_window_y_offset + self.loaded_videos_y_offset + self.loaded_videos_listbox_size[1] + (2 * self.loaded_videos_y_spacing) + self.loaded_videos_button_size[1]) / 1400) * self.main_window_height
+        self.calculate_background_button.move(new_x, new_y)
+        self.calculate_background_button.resize(new_width, new_height)
+        self.calculate_background_button.setFont(self.font_loaded_videos_buttons)
+        # self.calculate_background_button.clicked.connect(self.check_calculate_background_button)
+
+        self.update_background_button = QPushButton('Update Background', self)
+        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (2 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
+        # new_y = ((self.main_window_y_offset + self.loaded_videos_y_offset + self.loaded_videos_listbox_size[1] + (2 * self.loaded_videos_y_spacing) + self.loaded_videos_button_size[1]) / 1400) * self.main_window_height
+        self.update_background_button.move(new_x, new_y)
+        self.update_background_button.resize(new_width, new_height)
+        self.update_background_button.setFont(self.font_loaded_videos_buttons)
+        # self.update_background_button.clicked.connect(self.check_update_background_button)
+
+        self.update_tracking_parameters_button = QPushButton('Update Tracking Parameters', self)
+        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (0 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
+        new_y = ((self.main_window_y_offset + self.loaded_videos_y_offset + self.loaded_videos_listbox_size[1] + (2 * (self.loaded_videos_y_spacing + self.loaded_videos_button_size[1])) + self.loaded_videos_y_spacing) / 1400) * self.main_window_height
+        self.update_tracking_parameters_button.move(new_x, new_y)
+        self.update_tracking_parameters_button.resize(new_width, new_height)
+        self.update_tracking_parameters_button.setFont(self.font_loaded_videos_buttons)
+        # self.update_tracking_parameters_button.clicked.connect(self.check_update_background_button)
+
+        self.update_colour_parameters_button = QPushButton('Update Colour Parameters', self)
+        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (1 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
+        self.update_colour_parameters_button.move(new_x, new_y)
+        self.update_colour_parameters_button.resize(new_width, new_height)
+        self.update_colour_parameters_button.setFont(self.font_loaded_videos_buttons)
+        # self.update_colour_parameters_button.clicked.connect(self.check_update_background_button)
+
+        self.track_selected_video_button = QPushButton('Track Selected Video', self)
+        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (2 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
+        self.track_selected_video_button.move(new_x, new_y)
+        self.track_selected_video_button.resize(new_width, new_height)
+        self.track_selected_video_button.setFont(self.font_loaded_videos_buttons)
+        # self.update_colour_parameters_button.clicked.connect(self.check_update_background_button)
+
+        self.reload_tracking_parameters_button = QPushButton('Reload Tracking Parameters', self)
+        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (0 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
+        new_y = ((self.main_window_y_offset + self.loaded_videos_y_offset + self.loaded_videos_listbox_size[1] + (3 * (self.loaded_videos_y_spacing + self.loaded_videos_button_size[1])) + self.loaded_videos_y_spacing) / 1400) * self.main_window_height
+        self.reload_tracking_parameters_button.move(new_x, new_y)
+        self.reload_tracking_parameters_button.resize(new_width, new_height)
+        self.reload_tracking_parameters_button.setFont(self.font_loaded_videos_buttons)
+        # self.update_tracking_parameters_button.clicked.connect(self.check_update_background_button)
+
+        self.reload_colour_parameters_button = QPushButton('Reload Colour Parameters', self)
+        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (1 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
+        self.reload_colour_parameters_button.move(new_x, new_y)
+        self.reload_colour_parameters_button.resize(new_width, new_height)
+        self.reload_colour_parameters_button.setFont(self.font_loaded_videos_buttons)
+        # self.update_colour_parameters_button.clicked.connect(self.check_update_background_button)
+
+        self.track_all_videos_button = QPushButton('Track All Videos', self)
+        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (2 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
+        self.track_all_videos_button.move(new_x, new_y)
+        self.track_all_videos_button.resize(new_width, new_height)
+        self.track_all_videos_button.setFont(self.font_loaded_videos_buttons)
+        # self.update_colour_parameters_button.clicked.connect(self.check_update_background_button)
+    def add_descriptors_window(self):
+        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing) / 2560) * self.main_window_width
+        new_y = ((self.main_window_y_offset + self.loaded_videos_window_size[1] + self.main_window_spacing) / 1400) * self.main_window_height
         new_width = (self.descriptors_window_size[0] / 2560) * self.main_window_width
         new_height = (self.descriptors_window_size[1] / 1400) * self.main_window_height
 
         self.descriptors_window = QLabel(self)
-        self.descriptors_window.setFrameShape(QFrame.Panel)
-        self.descriptors_window.setFrameShadow(QFrame.Sunken)
-        self.descriptors_window.setLineWidth(5)
+        self.descriptors_window.setFrameShape(QFrame.StyledPanel)
+        # self.descriptors_window.setFrameShadow(QFrame.Sunken)
+        # self.descriptors_window.setLineWidth(5)
         self.descriptors_window.move(new_x, new_y)
         self.descriptors_window.resize(new_width, new_height)
         self.descriptors_window.setText('Descriptors')
@@ -428,24 +565,24 @@ class TrackingContent(QMainWindow):
         new_width = ((self.descriptors_window_size[0] - (2 * self.descriptors_x_offset)) / 2560) * self.main_window_width
         new_height = (self.descriptors_height / 1400) * self.main_window_height
 
-        self.video_path_folder_descriptor = QLabel(self)
-        new_y = ((self.main_window_y_offset + self.descriptors_y_offset + (0 * (self.descriptors_height + self.descriptors_y_spacing))) / 1400) * self.main_window_height
-        self.video_path_folder_descriptor.move(new_x, new_y)
-        self.video_path_folder_descriptor.resize(new_width, new_height)
-        self.video_path_folder_descriptor.setText('Video Folder: {0}'.format(self.video_path_folder))
-        self.video_path_folder_descriptor.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.video_path_folder_descriptor.setFont(self.font_text)
-
         self.video_path_basename_descriptor = QLabel(self)
-        new_y = ((self.main_window_y_offset + self.descriptors_y_offset + (1 * (self.descriptors_height + self.descriptors_y_spacing))) / 1400) * self.main_window_height
+        new_y = ((self.main_window_y_offset + self.loaded_videos_window_size[1] + self.main_window_spacing + self.descriptors_y_offset + (0 * (self.descriptors_height + self.descriptors_y_spacing))) / 1400) * self.main_window_height
         self.video_path_basename_descriptor.move(new_x, new_y)
         self.video_path_basename_descriptor.resize(new_width, new_height)
         self.video_path_basename_descriptor.setText('Video Filename: {0}'.format(self.video_path_basename))
         self.video_path_basename_descriptor.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.video_path_basename_descriptor.setFont(self.font_text)
 
+        self.video_path_folder_descriptor = QLabel(self)
+        new_y = ((self.main_window_y_offset + self.loaded_videos_window_size[1] + self.main_window_spacing + self.descriptors_y_offset + (1 * (self.descriptors_height + self.descriptors_y_spacing))) / 1400) * self.main_window_height
+        self.video_path_folder_descriptor.move(new_x, new_y)
+        self.video_path_folder_descriptor.resize(new_width, new_height)
+        self.video_path_folder_descriptor.setText('Video Folder: {0}'.format(self.video_path_folder))
+        self.video_path_folder_descriptor.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.video_path_folder_descriptor.setFont(self.font_text)
+
         self.video_n_frames_descriptor = QLabel(self)
-        new_y = ((self.main_window_y_offset + self.descriptors_y_offset + (2 * (self.descriptors_height + self.descriptors_y_spacing))) / 1400) * self.main_window_height
+        new_y = ((self.main_window_y_offset + self.loaded_videos_window_size[1] + self.main_window_spacing + self.descriptors_y_offset + (2 * (self.descriptors_height + self.descriptors_y_spacing))) / 1400) * self.main_window_height
         self.video_n_frames_descriptor.move(new_x, new_y)
         self.video_n_frames_descriptor.resize(new_width, new_height)
         self.video_n_frames_descriptor.setText('Video Total Frames: {0}'.format(self.video_n_frames))
@@ -453,23 +590,15 @@ class TrackingContent(QMainWindow):
         self.video_n_frames_descriptor.setFont(self.font_text)
 
         self.video_fps_descriptor = QLabel(self)
-        new_y = ((self.main_window_y_offset + self.descriptors_y_offset + (3 * (self.descriptors_height + self.descriptors_y_spacing))) / 1400) * self.main_window_height
+        new_y = ((self.main_window_y_offset + self.loaded_videos_window_size[1] + self.main_window_spacing + self.descriptors_y_offset + (3 * (self.descriptors_height + self.descriptors_y_spacing))) / 1400) * self.main_window_height
         self.video_fps_descriptor.move(new_x, new_y)
         self.video_fps_descriptor.resize(new_width, new_height)
         self.video_fps_descriptor.setText('Video FPS: {0}'.format(self.video_fps))
         self.video_fps_descriptor.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.video_fps_descriptor.setFont(self.font_text)
 
-        self.video_format_descriptor = QLabel(self)
-        new_y = ((self.main_window_y_offset + self.descriptors_y_offset + (4 * (self.descriptors_height + self.descriptors_y_spacing))) / 1400) * self.main_window_height
-        self.video_format_descriptor.move(new_x, new_y)
-        self.video_format_descriptor.resize(new_width, new_height)
-        self.video_format_descriptor.setText('Video Format: {0}'.format(self.video_format))
-        self.video_format_descriptor.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.video_format_descriptor.setFont(self.font_text)
-
         self.frame_width_descriptor = QLabel(self)
-        new_y = ((self.main_window_y_offset + self.descriptors_y_offset + (5 * (self.descriptors_height + self.descriptors_y_spacing))) / 1400) * self.main_window_height
+        new_y = ((self.main_window_y_offset + self.loaded_videos_window_size[1] + self.main_window_spacing + self.descriptors_y_offset + (4 * (self.descriptors_height + self.descriptors_y_spacing))) / 1400) * self.main_window_height
         self.frame_width_descriptor.move(new_x, new_y)
         self.frame_width_descriptor.resize(new_width, new_height)
         self.frame_width_descriptor.setText('Frame Width: {0}'.format(self.video_frame_width))
@@ -477,23 +606,15 @@ class TrackingContent(QMainWindow):
         self.frame_width_descriptor.setFont(self.font_text)
 
         self.frame_height_descriptor = QLabel(self)
-        new_y = ((self.main_window_y_offset + self.descriptors_y_offset + (6 * (self.descriptors_height + self.descriptors_y_spacing))) / 1400) * self.main_window_height
+        new_y = ((self.main_window_y_offset + self.loaded_videos_window_size[1] + self.main_window_spacing + self.descriptors_y_offset + (5 * (self.descriptors_height + self.descriptors_y_spacing))) / 1400) * self.main_window_height
         self.frame_height_descriptor.move(new_x, new_y)
         self.frame_height_descriptor.resize(new_width, new_height)
         self.frame_height_descriptor.setText('Frame Height: {0}'.format(self.video_frame_height))
         self.frame_height_descriptor.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.frame_height_descriptor.setFont(self.font_text)
 
-        self.background_path_folder_descriptor = QLabel(self)
-        new_y = ((self.main_window_y_offset + self.descriptors_y_offset + (7 * (self.descriptors_height + self.descriptors_y_spacing))) / 1400) * self.main_window_height
-        self.background_path_folder_descriptor.move(new_x, new_y)
-        self.background_path_folder_descriptor.resize(new_width, new_height)
-        self.background_path_folder_descriptor.setText('Background Folder: {0}'.format(self.background_path_folder))
-        self.background_path_folder_descriptor.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.background_path_folder_descriptor.setFont(self.font_text)
-
         self.background_path_basename_descriptor = QLabel(self)
-        new_y = ((self.main_window_y_offset + self.descriptors_y_offset + (8 * (self.descriptors_height + self.descriptors_y_spacing))) / 1400) * self.main_window_height
+        new_y = ((self.main_window_y_offset + self.loaded_videos_window_size[1] + self.main_window_spacing + self.descriptors_y_offset + (6 * (self.descriptors_height + self.descriptors_y_spacing))) / 1400) * self.main_window_height
         self.background_path_basename_descriptor.move(new_x, new_y)
         self.background_path_basename_descriptor.resize(new_width, new_height)
         self.background_path_basename_descriptor.setText('Background Filename: {0}'.format(self.background_path_basename))
@@ -501,7 +622,7 @@ class TrackingContent(QMainWindow):
         self.background_path_basename_descriptor.setFont(self.font_text)
 
         self.save_path_descriptor = QLabel(self)
-        new_y = ((self.main_window_y_offset + self.descriptors_y_offset + (9 * (self.descriptors_height + self.descriptors_y_spacing))) / 1400) * self.main_window_height
+        new_y = ((self.main_window_y_offset + self.loaded_videos_window_size[1] + self.main_window_spacing + self.descriptors_y_offset + (7 * (self.descriptors_height + self.descriptors_y_spacing))) / 1400) * self.main_window_height
         self.save_path_descriptor.move(new_x, new_y)
         self.save_path_descriptor.resize(new_width, new_height)
         self.save_path_descriptor.setText('Save Path: {0}'.format(self.save_path))
@@ -643,9 +764,9 @@ class TrackingContent(QMainWindow):
         new_height = (self.preview_parameters_window_size[1] / 1400) * self.main_window_height
 
         self.preview_parameters_window = QLabel(self)
-        self.preview_parameters_window.setFrameShape(QFrame.Panel)
-        self.preview_parameters_window.setFrameShadow(QFrame.Sunken)
-        self.preview_parameters_window.setLineWidth(5)
+        self.preview_parameters_window.setFrameShape(QFrame.StyledPanel)
+        # self.preview_parameters_window.setFrameShadow(QFrame.Sunken)
+        # self.preview_parameters_window.setLineWidth(5)
         self.preview_parameters_window.move(new_x, new_y)
         self.preview_parameters_window.resize(new_width, new_height)
         self.preview_parameters_window.setText('Preview Parameters')
@@ -712,9 +833,9 @@ class TrackingContent(QMainWindow):
         new_height = (self.tracking_parameters_window_size[1] / 1400) * self.main_window_height
 
         self.tracking_parameters_window = QLabel(self)
-        self.tracking_parameters_window.setFrameShape(QFrame.Panel)
-        self.tracking_parameters_window.setFrameShadow(QFrame.Sunken)
-        self.tracking_parameters_window.setLineWidth(5)
+        self.tracking_parameters_window.setFrameShape(QFrame.StyledPanel)
+        # self.tracking_parameters_window.setFrameShadow(QFrame.Sunken)
+        # self.tracking_parameters_window.setLineWidth(5)
         self.tracking_parameters_window.move(new_x, new_y)
         self.tracking_parameters_window.resize(new_width, new_height)
         self.tracking_parameters_window.setText('Tracking Parameters')
@@ -732,193 +853,13 @@ class TrackingContent(QMainWindow):
 
         new_width = (self.tracking_parameters_window_size[0] - (4 * self.tracking_parameters_x_offset))
         new_height = (self.main_window_y_offset + self.tracking_parameters_y_offset + (13 * (self.tracking_parameters_height + self.tracking_parameters_y_spacing)) + self.tracking_parameters_height)
-        self.tracking_parameters = QWidget(self)
-        self.tracking_parameters.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
-        self.tracking_parameters.resize(new_width, new_height)
-        self.tracking_parameters_scroll_area.setWidget(self.tracking_parameters)
+        self.tracking_parameters_widget = QWidget(self)
+        self.tracking_parameters_widget.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
+        self.tracking_parameters_widget.resize(new_width, new_height)
+        self.tracking_parameters_scroll_area.setWidget(self.tracking_parameters_widget)
     def add_tracking_parameters_to_window(self):
         self.grid_layout = QGridLayout()
-        self.tracking_parameters.setLayout(self.grid_layout)
-
-        self.tracking_method_combobox_label = QLabel(self)
-        self.tracking_method_combobox_label.setText('Tracking Method: ')
-        self.tracking_method_combobox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.tracking_method_combobox_label.setFont(self.font_text)
-        self.tracking_method_combobox = QComboBox(self)
-        self.tracking_method_combobox.addItem('Free Swimming')
-        self.tracking_method_combobox.addItem('Head Fixed')
-        self.tracking_method_combobox.setCurrentIndex(0)
-        self.tracking_method_combobox.currentIndexChanged.connect(self.check_tracking_method_combobox)
-        self.grid_layout.addWidget(self.tracking_method_combobox_label, 1, 1)
-        self.grid_layout.addWidget(self.tracking_method_combobox, 1, 2)
-
-        self.tracking_n_tail_points_textbox_label = QLabel(self)
-        self.tracking_n_tail_points_textbox_label.setText('Number of Tail Points: ')
-        self.tracking_n_tail_points_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.tracking_n_tail_points_textbox_label.setFont(self.font_text)
-        self.tracking_n_tail_points_textbox = QLineEdit(self)
-        self.tracking_n_tail_points_textbox.setText('{0}'.format(self.n_tail_points))
-        self.tracking_n_tail_points_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.tracking_n_tail_points_textbox.setFont(self.font_text)
-        self.tracking_n_tail_points_textbox.returnPressed.connect(self.check_tracking_n_tail_points_textbox)
-        self.grid_layout.addWidget(self.tracking_n_tail_points_textbox_label, 2, 1)
-        self.grid_layout.addWidget(self.tracking_n_tail_points_textbox, 2, 2)
-
-        self.tracking_dist_tail_points_textbox_label = QLabel(self)
-        self.tracking_dist_tail_points_textbox_label.setText('Distance Between Tail Points: ')
-        self.tracking_dist_tail_points_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.tracking_dist_tail_points_textbox_label.setFont(self.font_text)
-        self.tracking_dist_tail_points_textbox = QLineEdit(self)
-        self.tracking_dist_tail_points_textbox.setText('{0}'.format(self.dist_tail_points))
-        self.tracking_dist_tail_points_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.tracking_dist_tail_points_textbox.setFont(self.font_text)
-        self.tracking_dist_tail_points_textbox.returnPressed.connect(self.check_tracking_dist_tail_points_textbox)
-        self.grid_layout.addWidget(self.tracking_dist_tail_points_textbox_label, 3, 1)
-        self.grid_layout.addWidget(self.tracking_dist_tail_points_textbox, 3, 2)
-
-        self.tracking_dist_eyes_textbox_label = QLabel(self)
-        self.tracking_dist_eyes_textbox_label.setText('Distance Between Eyes: ')
-        self.tracking_dist_eyes_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.tracking_dist_eyes_textbox_label.setFont(self.font_text)
-        self.tracking_dist_eyes_textbox = QLineEdit(self)
-        self.tracking_dist_eyes_textbox.setText('{0}'.format(self.dist_eyes))
-        self.tracking_dist_eyes_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.tracking_dist_eyes_textbox.setFont(self.font_text)
-        self.tracking_dist_eyes_textbox.returnPressed.connect(self.check_tracking_dist_eyes_textbox)
-        self.grid_layout.addWidget(self.tracking_dist_eyes_textbox_label, 4, 1)
-        self.grid_layout.addWidget(self.tracking_dist_eyes_textbox, 4, 2)
-
-        self.tracking_dist_swim_bladder_textbox_label = QLabel(self)
-        self.tracking_dist_swim_bladder_textbox_label.setText('Distance Between Eyes and Swim Bladder: ')
-        self.tracking_dist_swim_bladder_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.tracking_dist_swim_bladder_textbox_label.setFont(self.font_text)
-        self.tracking_dist_swim_bladder_textbox = QLineEdit(self)
-        self.tracking_dist_swim_bladder_textbox.setText('{0}'.format(self.dist_swim_bladder))
-        self.tracking_dist_swim_bladder_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.tracking_dist_swim_bladder_textbox.setFont(self.font_text)
-        self.tracking_dist_swim_bladder_textbox.returnPressed.connect(self.check_tracking_dist_swim_bladder_textbox)
-        self.grid_layout.addWidget(self.tracking_dist_swim_bladder_textbox_label, 5, 1)
-        self.grid_layout.addWidget(self.tracking_dist_swim_bladder_textbox, 5, 2)
-
-        self.tracking_starting_frame_textbox_label = QLabel(self)
-        self.tracking_starting_frame_textbox_label.setText('Starting Frame: ')
-        self.tracking_starting_frame_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.tracking_starting_frame_textbox_label.setFont(self.font_text)
-        self.tracking_starting_frame_textbox = QLineEdit(self)
-        self.tracking_starting_frame_textbox.setText('{0}'.format(self.starting_frame))
-        self.tracking_starting_frame_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.tracking_starting_frame_textbox.setFont(self.font_text)
-        self.tracking_starting_frame_textbox.returnPressed.connect(self.check_tracking_starting_frame_textbox)
-        self.grid_layout.addWidget(self.tracking_starting_frame_textbox_label, 6, 1)
-        self.grid_layout.addWidget(self.tracking_starting_frame_textbox, 6, 2)
-
-        self.tracking_n_frames_textbox_label = QLabel(self)
-        self.tracking_n_frames_textbox_label.setText('Number of Frames to Track: ')
-        self.tracking_n_frames_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.tracking_n_frames_textbox_label.setFont(self.font_text)
-        self.tracking_n_frames_textbox = QLineEdit(self)
-        self.tracking_n_frames_textbox.setText('{0}'.format(self.n_frames))
-        self.tracking_n_frames_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.tracking_n_frames_textbox.setFont(self.font_text)
-        self.tracking_n_frames_textbox.returnPressed.connect(self.check_tracking_n_frames_textbox)
-        self.grid_layout.addWidget(self.tracking_n_frames_textbox_label, 7, 1)
-        self.grid_layout.addWidget(self.tracking_n_frames_textbox, 7, 2)
-
-        self.tracking_line_length_textbox_label = QLabel(self)
-        self.tracking_line_length_textbox_label.setText('Line Length: ')
-        self.tracking_line_length_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.tracking_line_length_textbox_label.setFont(self.font_text)
-        self.tracking_line_length_textbox = QLineEdit(self)
-        self.tracking_line_length_textbox.setText('{0}'.format(self.line_length))
-        self.tracking_line_length_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.tracking_line_length_textbox.setFont(self.font_text)
-        self.tracking_line_length_textbox.returnPressed.connect(self.check_tracking_line_length_textbox)
-        self.grid_layout.addWidget(self.tracking_line_length_textbox_label, 8, 1)
-        self.grid_layout.addWidget(self.tracking_line_length_textbox, 8, 2)
-
-        self.tracking_pixel_threshold_textbox_label = QLabel(self)
-        self.tracking_pixel_threshold_textbox_label.setText('Pixel Threshold: ')
-        self.tracking_pixel_threshold_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.tracking_pixel_threshold_textbox_label.setFont(self.font_text)
-        self.tracking_pixel_threshold_textbox = QLineEdit(self)
-        self.tracking_pixel_threshold_textbox.setText('{0}'.format(self.pixel_threshold))
-        self.tracking_pixel_threshold_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.tracking_pixel_threshold_textbox.setFont(self.font_text)
-        self.tracking_pixel_threshold_textbox.returnPressed.connect(self.check_tracking_pixel_threshold_textbox)
-        self.grid_layout.addWidget(self.tracking_pixel_threshold_textbox_label, 9, 1)
-        self.grid_layout.addWidget(self.tracking_pixel_threshold_textbox, 9, 2)
-
-        self.tracking_frame_change_threshold_textbox_label = QLabel(self)
-        self.tracking_frame_change_threshold_textbox_label.setText('Frame Change Threshold: ')
-        self.tracking_frame_change_threshold_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.tracking_frame_change_threshold_textbox_label.setFont(self.font_text)
-        self.tracking_frame_change_threshold_textbox = QLineEdit(self)
-        self.tracking_frame_change_threshold_textbox.setText('{0}'.format(self.frame_change_threshold))
-        self.tracking_frame_change_threshold_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.tracking_frame_change_threshold_textbox.setFont(self.font_text)
-        self.tracking_frame_change_threshold_textbox.returnPressed.connect(self.check_tracking_frame_change_threshold_textbox)
-        self.grid_layout.addWidget(self.tracking_frame_change_threshold_textbox_label, 10, 1)
-        self.grid_layout.addWidget(self.tracking_frame_change_threshold_textbox, 10, 2)
-
-        self.eyes_threshold_textbox_label = QLabel(self)
-        self.eyes_threshold_textbox_label.setText('Eyes Threshold: ')
-        self.eyes_threshold_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.eyes_threshold_textbox_label.setFont(self.font_text)
-        self.eyes_threshold_textbox = QLineEdit(self)
-        self.eyes_threshold_textbox.setText('{0}'.format(self.eyes_threshold))
-        self.eyes_threshold_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.eyes_threshold_textbox.setFont(self.font_text)
-        self.eyes_threshold_textbox.returnPressed.connect(self.check_eyes_threshold_textbox)
-        self.grid_layout.addWidget(self.eyes_threshold_textbox_label, 11, 1)
-        self.grid_layout.addWidget(self.eyes_threshold_textbox, 11, 2)
-
-        self.eyes_line_length_textbox_label = QLabel(self)
-        self.eyes_line_length_textbox_label.setText('Eyes Line Length: ')
-        self.eyes_line_length_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.eyes_line_length_textbox_label.setFont(self.font_text)
-        self.eyes_line_length_textbox = QLineEdit(self)
-        self.eyes_line_length_textbox.setText('{0}'.format(self.eyes_threshold))
-        self.eyes_line_length_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.eyes_line_length_textbox.setFont(self.font_text)
-        self.eyes_line_length_textbox.returnPressed.connect(self.check_eyes_line_length_textbox)
-        self.grid_layout.addWidget(self.eyes_line_length_textbox_label, 12, 1)
-        self.grid_layout.addWidget(self.eyes_line_length_textbox, 12, 2)
-
-        self.save_tracked_video_combobox_label = QLabel(self)
-        self.save_tracked_video_combobox_label.setText('Save Tracked Video: ')
-        self.save_tracked_video_combobox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.save_tracked_video_combobox_label.setFont(self.font_text)
-        self.save_tracked_video_combobox = QComboBox(self)
-        self.save_tracked_video_combobox.addItem('True')
-        self.save_tracked_video_combobox.addItem('False')
-        self.save_tracked_video_combobox.setCurrentIndex(1)
-        self.save_tracked_video_combobox.currentIndexChanged.connect(self.check_save_tracked_video_combobox)
-        self.grid_layout.addWidget(self.save_tracked_video_combobox_label, 13, 1)
-        self.grid_layout.addWidget(self.save_tracked_video_combobox, 13, 2)
-
-        self.extended_eyes_calculation_combobox_label = QLabel(self)
-        self.extended_eyes_calculation_combobox_label.setText('Extended Eyes Calculation: ')
-        self.extended_eyes_calculation_combobox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.extended_eyes_calculation_combobox_label.setFont(self.font_text)
-        self.extended_eyes_calculation_combobox = QComboBox(self)
-        self.extended_eyes_calculation_combobox.addItem('True')
-        self.extended_eyes_calculation_combobox.addItem('False')
-        self.extended_eyes_calculation_combobox.setCurrentIndex(1)
-        self.extended_eyes_calculation_combobox.currentIndexChanged.connect(self.check_extended_eyes_calculation_combobox)
-        self.grid_layout.addWidget(self.extended_eyes_calculation_combobox_label, 14, 1)
-        self.grid_layout.addWidget(self.extended_eyes_calculation_combobox, 14, 2)
-
-        self.median_blur_textbox_label = QLabel(self)
-        self.median_blur_textbox_label.setText('Median Blur Value: ')
-        self.median_blur_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.median_blur_textbox_label.setFont(self.font_text)
-        self.median_blur_textbox = QLineEdit(self)
-        self.median_blur_textbox.setText('{0}'.format(self.median_blur))
-        self.median_blur_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.median_blur_textbox.setFont(self.font_text)
-        self.median_blur_textbox.returnPressed.connect(self.check_median_blur_textbox)
-        self.grid_layout.addWidget(self.median_blur_textbox_label, 15, 1)
-        self.grid_layout.addWidget(self.median_blur_textbox, 15, 2)
+        self.tracking_parameters_widget.setLayout(self.grid_layout)
 
         self.background_calculation_method_combobox_label = QLabel(self)
         self.background_calculation_method_combobox_label.setText('Background Calculation Method: ')
@@ -930,8 +871,8 @@ class TrackingContent(QMainWindow):
         self.background_calculation_method_combobox.addItem('Mode')
         self.background_calculation_method_combobox.setCurrentIndex(0)
         self.background_calculation_method_combobox.currentIndexChanged.connect(self.check_background_calculation_method_combobox)
-        self.grid_layout.addWidget(self.background_calculation_method_combobox_label, 16, 1)
-        self.grid_layout.addWidget(self.background_calculation_method_combobox, 16, 2)
+        self.grid_layout.addWidget(self.background_calculation_method_combobox_label, 1, 1)
+        self.grid_layout.addWidget(self.background_calculation_method_combobox, 1, 2)
 
         self.background_calculation_frame_chunk_width_textbox_label = QLabel(self)
         self.background_calculation_frame_chunk_width_textbox_label.setText('Background Calculation Frame Chunk Width: ')
@@ -942,8 +883,8 @@ class TrackingContent(QMainWindow):
         self.background_calculation_frame_chunk_width_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.background_calculation_frame_chunk_width_textbox.setFont(self.font_text)
         self.background_calculation_frame_chunk_width_textbox.returnPressed.connect(self.check_background_calculation_frame_chunk_width_textbox)
-        self.grid_layout.addWidget(self.background_calculation_frame_chunk_width_textbox_label, 17, 1)
-        self.grid_layout.addWidget(self.background_calculation_frame_chunk_width_textbox, 17, 2)
+        self.grid_layout.addWidget(self.background_calculation_frame_chunk_width_textbox_label, 2, 1)
+        self.grid_layout.addWidget(self.background_calculation_frame_chunk_width_textbox, 2, 2)
 
         self.background_calculation_frame_chunk_height_textbox_label = QLabel(self)
         self.background_calculation_frame_chunk_height_textbox_label.setText('Background Calculation Frame Chunk Height: ')
@@ -954,8 +895,8 @@ class TrackingContent(QMainWindow):
         self.background_calculation_frame_chunk_height_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.background_calculation_frame_chunk_height_textbox.setFont(self.font_text)
         self.background_calculation_frame_chunk_height_textbox.returnPressed.connect(self.check_background_calculation_frame_chunk_height_textbox)
-        self.grid_layout.addWidget(self.background_calculation_frame_chunk_height_textbox_label, 18, 1)
-        self.grid_layout.addWidget(self.background_calculation_frame_chunk_height_textbox, 18, 2)
+        self.grid_layout.addWidget(self.background_calculation_frame_chunk_height_textbox_label, 3, 1)
+        self.grid_layout.addWidget(self.background_calculation_frame_chunk_height_textbox, 3, 2)
 
         self.background_calculation_frames_to_skip_textbox_label = QLabel(self)
         self.background_calculation_frames_to_skip_textbox_label.setText('Background Calculation Frames To Skip: ')
@@ -966,8 +907,224 @@ class TrackingContent(QMainWindow):
         self.background_calculation_frames_to_skip_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.background_calculation_frames_to_skip_textbox.setFont(self.font_text)
         self.background_calculation_frames_to_skip_textbox.returnPressed.connect(self.check_background_calculation_frames_to_skip_textbox)
-        self.grid_layout.addWidget(self.background_calculation_frames_to_skip_textbox_label, 19, 1)
-        self.grid_layout.addWidget(self.background_calculation_frames_to_skip_textbox, 19, 2)
+        self.grid_layout.addWidget(self.background_calculation_frames_to_skip_textbox_label, 4, 1)
+        self.grid_layout.addWidget(self.background_calculation_frames_to_skip_textbox, 4, 2)
+
+        self.tracking_method_combobox_label = QLabel(self)
+        self.tracking_method_combobox_label.setText('Tracking Method: ')
+        self.tracking_method_combobox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.tracking_method_combobox_label.setFont(self.font_text)
+        self.tracking_method_combobox = QComboBox(self)
+        self.tracking_method_combobox.addItem('Free Swimming')
+        self.tracking_method_combobox.addItem('Head Fixed')
+        self.tracking_method_combobox.setCurrentIndex(0)
+        self.tracking_method_combobox.currentIndexChanged.connect(self.check_tracking_method_combobox)
+        self.grid_layout.addWidget(self.tracking_method_combobox_label, 5, 1)
+        self.grid_layout.addWidget(self.tracking_method_combobox, 5, 2)
+
+        self.tracking_n_tail_points_textbox_label = QLabel(self)
+        self.tracking_n_tail_points_textbox_label.setText('Number of Tail Points: ')
+        self.tracking_n_tail_points_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.tracking_n_tail_points_textbox_label.setFont(self.font_text)
+        self.tracking_n_tail_points_textbox = QLineEdit(self)
+        self.tracking_n_tail_points_textbox.setText('{0}'.format(self.n_tail_points))
+        self.tracking_n_tail_points_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.tracking_n_tail_points_textbox.setFont(self.font_text)
+        self.tracking_n_tail_points_textbox.returnPressed.connect(self.check_tracking_n_tail_points_textbox)
+        self.grid_layout.addWidget(self.tracking_n_tail_points_textbox_label, 6, 1)
+        self.grid_layout.addWidget(self.tracking_n_tail_points_textbox, 6, 2)
+
+        self.tracking_dist_tail_points_textbox_label = QLabel(self)
+        self.tracking_dist_tail_points_textbox_label.setText('Distance Between Tail Points: ')
+        self.tracking_dist_tail_points_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.tracking_dist_tail_points_textbox_label.setFont(self.font_text)
+        self.tracking_dist_tail_points_textbox = QLineEdit(self)
+        self.tracking_dist_tail_points_textbox.setText('{0}'.format(self.dist_tail_points))
+        self.tracking_dist_tail_points_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.tracking_dist_tail_points_textbox.setFont(self.font_text)
+        self.tracking_dist_tail_points_textbox.returnPressed.connect(self.check_tracking_dist_tail_points_textbox)
+        self.grid_layout.addWidget(self.tracking_dist_tail_points_textbox_label, 7, 1)
+        self.grid_layout.addWidget(self.tracking_dist_tail_points_textbox, 7, 2)
+
+        self.tracking_dist_eyes_textbox_label = QLabel(self)
+        self.tracking_dist_eyes_textbox_label.setText('Distance Between Eyes: ')
+        self.tracking_dist_eyes_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.tracking_dist_eyes_textbox_label.setFont(self.font_text)
+        self.tracking_dist_eyes_textbox = QLineEdit(self)
+        self.tracking_dist_eyes_textbox.setText('{0}'.format(self.dist_eyes))
+        self.tracking_dist_eyes_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.tracking_dist_eyes_textbox.setFont(self.font_text)
+        self.tracking_dist_eyes_textbox.returnPressed.connect(self.check_tracking_dist_eyes_textbox)
+        self.grid_layout.addWidget(self.tracking_dist_eyes_textbox_label, 8, 1)
+        self.grid_layout.addWidget(self.tracking_dist_eyes_textbox, 8, 2)
+
+        self.tracking_dist_swim_bladder_textbox_label = QLabel(self)
+        self.tracking_dist_swim_bladder_textbox_label.setText('Distance Between Eyes and Swim Bladder: ')
+        self.tracking_dist_swim_bladder_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.tracking_dist_swim_bladder_textbox_label.setFont(self.font_text)
+        self.tracking_dist_swim_bladder_textbox = QLineEdit(self)
+        self.tracking_dist_swim_bladder_textbox.setText('{0}'.format(self.dist_swim_bladder))
+        self.tracking_dist_swim_bladder_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.tracking_dist_swim_bladder_textbox.setFont(self.font_text)
+        self.tracking_dist_swim_bladder_textbox.returnPressed.connect(self.check_tracking_dist_swim_bladder_textbox)
+        self.grid_layout.addWidget(self.tracking_dist_swim_bladder_textbox_label, 9, 1)
+        self.grid_layout.addWidget(self.tracking_dist_swim_bladder_textbox, 9, 2)
+
+        self.tracking_starting_frame_textbox_label = QLabel(self)
+        self.tracking_starting_frame_textbox_label.setText('Starting Frame: ')
+        self.tracking_starting_frame_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.tracking_starting_frame_textbox_label.setFont(self.font_text)
+        self.tracking_starting_frame_textbox = QLineEdit(self)
+        self.tracking_starting_frame_textbox.setText('{0}'.format(self.starting_frame))
+        self.tracking_starting_frame_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.tracking_starting_frame_textbox.setFont(self.font_text)
+        self.tracking_starting_frame_textbox.returnPressed.connect(self.check_tracking_starting_frame_textbox)
+        self.grid_layout.addWidget(self.tracking_starting_frame_textbox_label, 10, 1)
+        self.grid_layout.addWidget(self.tracking_starting_frame_textbox, 10, 2)
+
+        self.tracking_n_frames_textbox_label = QLabel(self)
+        self.tracking_n_frames_textbox_label.setText('Number of Frames to Track: ')
+        self.tracking_n_frames_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.tracking_n_frames_textbox_label.setFont(self.font_text)
+        self.tracking_n_frames_textbox = QLineEdit(self)
+        self.tracking_n_frames_textbox.setText('{0}'.format(self.n_frames))
+        self.tracking_n_frames_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.tracking_n_frames_textbox.setFont(self.font_text)
+        self.tracking_n_frames_textbox.returnPressed.connect(self.check_tracking_n_frames_textbox)
+        self.grid_layout.addWidget(self.tracking_n_frames_textbox_label, 11, 1)
+        self.grid_layout.addWidget(self.tracking_n_frames_textbox, 11, 2)
+
+        self.tracking_line_length_textbox_label = QLabel(self)
+        self.tracking_line_length_textbox_label.setText('Line Length: ')
+        self.tracking_line_length_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.tracking_line_length_textbox_label.setFont(self.font_text)
+        self.tracking_line_length_textbox = QLineEdit(self)
+        self.tracking_line_length_textbox.setText('{0}'.format(self.line_length))
+        self.tracking_line_length_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.tracking_line_length_textbox.setFont(self.font_text)
+        self.tracking_line_length_textbox.returnPressed.connect(self.check_tracking_line_length_textbox)
+        self.grid_layout.addWidget(self.tracking_line_length_textbox_label, 12, 1)
+        self.grid_layout.addWidget(self.tracking_line_length_textbox, 12, 2)
+
+        self.tracking_pixel_threshold_textbox_label = QLabel(self)
+        self.tracking_pixel_threshold_textbox_label.setText('Pixel Threshold: ')
+        self.tracking_pixel_threshold_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.tracking_pixel_threshold_textbox_label.setFont(self.font_text)
+        self.tracking_pixel_threshold_textbox = QLineEdit(self)
+        self.tracking_pixel_threshold_textbox.setText('{0}'.format(self.pixel_threshold))
+        self.tracking_pixel_threshold_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.tracking_pixel_threshold_textbox.setFont(self.font_text)
+        self.tracking_pixel_threshold_textbox.returnPressed.connect(self.check_tracking_pixel_threshold_textbox)
+        self.grid_layout.addWidget(self.tracking_pixel_threshold_textbox_label, 13, 1)
+        self.grid_layout.addWidget(self.tracking_pixel_threshold_textbox, 13, 2)
+
+        self.tracking_frame_change_threshold_textbox_label = QLabel(self)
+        self.tracking_frame_change_threshold_textbox_label.setText('Frame Change Threshold: ')
+        self.tracking_frame_change_threshold_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.tracking_frame_change_threshold_textbox_label.setFont(self.font_text)
+        self.tracking_frame_change_threshold_textbox = QLineEdit(self)
+        self.tracking_frame_change_threshold_textbox.setText('{0}'.format(self.frame_change_threshold))
+        self.tracking_frame_change_threshold_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.tracking_frame_change_threshold_textbox.setFont(self.font_text)
+        self.tracking_frame_change_threshold_textbox.returnPressed.connect(self.check_tracking_frame_change_threshold_textbox)
+        self.grid_layout.addWidget(self.tracking_frame_change_threshold_textbox_label, 14, 1)
+        self.grid_layout.addWidget(self.tracking_frame_change_threshold_textbox, 14, 2)
+
+        self.eyes_threshold_textbox_label = QLabel(self)
+        self.eyes_threshold_textbox_label.setText('Eyes Threshold: ')
+        self.eyes_threshold_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.eyes_threshold_textbox_label.setFont(self.font_text)
+        self.eyes_threshold_textbox = QLineEdit(self)
+        self.eyes_threshold_textbox.setText('{0}'.format(self.eyes_threshold))
+        self.eyes_threshold_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.eyes_threshold_textbox.setFont(self.font_text)
+        self.eyes_threshold_textbox.returnPressed.connect(self.check_eyes_threshold_textbox)
+        self.grid_layout.addWidget(self.eyes_threshold_textbox_label, 15, 1)
+        self.grid_layout.addWidget(self.eyes_threshold_textbox, 15, 2)
+
+        self.eyes_line_length_textbox_label = QLabel(self)
+        self.eyes_line_length_textbox_label.setText('Eyes Line Length: ')
+        self.eyes_line_length_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.eyes_line_length_textbox_label.setFont(self.font_text)
+        self.eyes_line_length_textbox = QLineEdit(self)
+        self.eyes_line_length_textbox.setText('{0}'.format(self.eyes_threshold))
+        self.eyes_line_length_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.eyes_line_length_textbox.setFont(self.font_text)
+        self.eyes_line_length_textbox.returnPressed.connect(self.check_eyes_line_length_textbox)
+        self.grid_layout.addWidget(self.eyes_line_length_textbox_label, 16, 1)
+        self.grid_layout.addWidget(self.eyes_line_length_textbox, 16, 2)
+
+        self.save_tracked_video_combobox_label = QLabel(self)
+        self.save_tracked_video_combobox_label.setText('Save Tracked Video: ')
+        self.save_tracked_video_combobox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.save_tracked_video_combobox_label.setFont(self.font_text)
+        self.save_tracked_video_combobox = QComboBox(self)
+        self.save_tracked_video_combobox.addItem('True')
+        self.save_tracked_video_combobox.addItem('False')
+        self.save_tracked_video_combobox.setCurrentIndex(1)
+        self.save_tracked_video_combobox.currentIndexChanged.connect(self.check_save_tracked_video_combobox)
+        self.grid_layout.addWidget(self.save_tracked_video_combobox_label, 17, 1)
+        self.grid_layout.addWidget(self.save_tracked_video_combobox, 17, 2)
+
+        self.extended_eyes_calculation_combobox_label = QLabel(self)
+        self.extended_eyes_calculation_combobox_label.setText('Extended Eyes Calculation: ')
+        self.extended_eyes_calculation_combobox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.extended_eyes_calculation_combobox_label.setFont(self.font_text)
+        self.extended_eyes_calculation_combobox = QComboBox(self)
+        self.extended_eyes_calculation_combobox.addItem('True')
+        self.extended_eyes_calculation_combobox.addItem('False')
+        self.extended_eyes_calculation_combobox.setCurrentIndex(1)
+        self.extended_eyes_calculation_combobox.currentIndexChanged.connect(self.check_extended_eyes_calculation_combobox)
+        self.grid_layout.addWidget(self.extended_eyes_calculation_combobox_label, 18, 1)
+        self.grid_layout.addWidget(self.extended_eyes_calculation_combobox, 18, 2)
+
+        self.median_blur_textbox_label = QLabel(self)
+        self.median_blur_textbox_label.setText('Median Blur Value: ')
+        self.median_blur_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.median_blur_textbox_label.setFont(self.font_text)
+        self.median_blur_textbox = QLineEdit(self)
+        self.median_blur_textbox.setText('{0}'.format(self.median_blur))
+        self.median_blur_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.median_blur_textbox.setFont(self.font_text)
+        self.median_blur_textbox.returnPressed.connect(self.check_median_blur_textbox)
+        self.grid_layout.addWidget(self.median_blur_textbox_label, 19, 1)
+        self.grid_layout.addWidget(self.median_blur_textbox, 19, 2)
+
+        self.initial_pixel_search_combobox_label = QLabel(self)
+        self.initial_pixel_search_combobox_label.setText('Initial Pixel Search: ')
+        self.initial_pixel_search_combobox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.initial_pixel_search_combobox_label.setFont(self.font_text)
+        self.initial_pixel_search_combobox = QComboBox(self)
+        self.initial_pixel_search_combobox.addItem('Brightest')
+        self.initial_pixel_search_combobox.addItem('Darkest')
+        self.initial_pixel_search_combobox.setCurrentIndex(0)
+        self.initial_pixel_search_combobox.currentIndexChanged.connect(self.check_initial_pixel_search_combobox)
+        self.grid_layout.addWidget(self.initial_pixel_search_combobox_label, 20, 1)
+        self.grid_layout.addWidget(self.initial_pixel_search_combobox, 20, 2)
+
+        self.invert_threshold_combobox_label = QLabel(self)
+        self.invert_threshold_combobox_label.setText('Invert Eyes Treshold: ')
+        self.invert_threshold_combobox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.invert_threshold_combobox_label.setFont(self.font_text)
+        self.invert_threshold_combobox = QComboBox(self)
+        self.invert_threshold_combobox.addItem('True')
+        self.invert_threshold_combobox.addItem('False')
+        self.invert_threshold_combobox.setCurrentIndex(0)
+        self.invert_threshold_combobox.currentIndexChanged.connect(self.check_invert_threshold_combobox)
+        self.grid_layout.addWidget(self.invert_threshold_combobox_label, 21, 1)
+        self.grid_layout.addWidget(self.invert_threshold_combobox, 21, 2)
+
+        self.range_angles_textbox_label = QLabel(self)
+        self.range_angles_textbox_label.setText('Range of Angles for Tail Calculation: ')
+        self.range_angles_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.range_angles_textbox_label.setFont(self.font_text)
+        self.range_angles_textbox = QLineEdit(self)
+        self.range_angles_textbox.setText('{0}'.format(self.range_angles))
+        self.range_angles_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.range_angles_textbox.setFont(self.font_text)
+        self.range_angles_textbox.returnPressed.connect(self.check_range_angles_textbox)
+        self.grid_layout.addWidget(self.range_angles_textbox_label, 22, 1)
+        self.grid_layout.addWidget(self.range_angles_textbox, 22, 2)
 
         self.trigger_load_default_tracking_parameters()
         self.trigger_load_default_colours()
@@ -1012,9 +1169,9 @@ class TrackingContent(QMainWindow):
         new_height = (self.colour_parameters_window_size[1] / 1400) * self.main_window_height
 
         self.colour_parameters_window = QLabel(self)
-        self.colour_parameters_window.setFrameShape(QFrame.Panel)
-        self.colour_parameters_window.setFrameShadow(QFrame.Sunken)
-        self.colour_parameters_window.setLineWidth(5)
+        self.colour_parameters_window.setFrameShape(QFrame.StyledPanel)
+        # self.colour_parameters_window.setFrameShadow(QFrame.Sunken)
+        # self.colour_parameters_window.setLineWidth(5)
         self.colour_parameters_window.move(new_x, new_y)
         self.colour_parameters_window.resize(new_width, new_height)
         self.colour_parameters_window.setText('Colour Parameters')
@@ -1163,9 +1320,9 @@ class TrackingContent(QMainWindow):
         new_height = (self.status_window_size[1] / 1400) * self.main_window_height
 
         self.status_window = QLabel(self)
-        self.status_window.setFrameShape(QFrame.Panel)
-        self.status_window.setFrameShadow(QFrame.Sunken)
-        self.status_window.setLineWidth(5)
+        self.status_window.setFrameShape(QFrame.StyledPanel)
+        # self.status_window.setFrameShadow(QFrame.Sunken)
+        # self.status_window.setLineWidth(5)
         self.status_window.move(new_x, new_y)
         self.status_window.resize(new_width, new_height)
         self.status_window.setText('Status')
@@ -1214,10 +1371,8 @@ class TrackingContent(QMainWindow):
         self.video_path_basename_descriptor.setText('Video Filename: {0}'.format(self.video_path_basename))
         self.video_n_frames_descriptor.setText('Video Total Frames: {0}'.format(self.video_n_frames))
         self.video_fps_descriptor.setText('Video FPS: {0}'.format(self.video_fps))
-        self.video_format_descriptor.setText('Video Format: {0}'.format(self.video_format))
         self.frame_width_descriptor.setText('Frame Width: {0}'.format(self.video_frame_width))
         self.frame_height_descriptor.setText('Frame Height: {0}'.format(self.video_frame_height))
-        self.background_path_folder_descriptor.setText('Background Folder: {0}'.format(self.background_path_folder))
         self.background_path_basename_descriptor.setText('Background Filename: {0}'.format(self.background_path_basename))
         self.save_path_descriptor.setText('Save Path: {0}'.format(self.save_path))
     def update_preview_frame(self, frame, frame_width, frame_height, scaled_width = None, grayscale = True):
@@ -1379,6 +1534,12 @@ class TrackingContent(QMainWindow):
                 self.extended_eyes_calculation_combobox.setEnabled(True)
             if not self.median_blur_textbox.isEnabled():
                 self.median_blur_textbox.setEnabled(True)
+            if not self.initial_pixel_search_combobox.isEnabled():
+                self.initial_pixel_search_combobox.setEnabled(True)
+            if not self.invert_threshold_combobox.isEnabled():
+                self.invert_threshold_combobox.setEnabled(True)
+            if not self.range_angles_textbox.isEnabled():
+                self.range_angles_textbox.setEnabled(True)
         if inactivate:
             if self.tracking_method_combobox.isEnabled():
                 self.tracking_method_combobox.setEnabled(False)
@@ -1410,6 +1571,12 @@ class TrackingContent(QMainWindow):
                 self.extended_eyes_calculation_combobox.setEnabled(False)
             if self.median_blur_textbox.isEnabled():
                 self.median_blur_textbox.setEnabled(False)
+            if self.initial_pixel_search_combobox.isEnabled():
+                self.initial_pixel_search_combobox.setEnabled(False)
+            if self.invert_threshold_combobox.isEnabled():
+                self.invert_threshold_combobox.setEnabled(False)
+            if self.range_angles_textbox.isEnabled():
+                self.range_angles_textbox.setEnabled(False)
         if self.tracking_method_combobox.isEnabled():
             if self.tracking_method == 'free_swimming':
                 self.tracking_method_combobox.setCurrentIndex(0)
@@ -1462,6 +1629,18 @@ class TrackingContent(QMainWindow):
             self.background_calculation_frame_chunk_height_textbox.setText('{0}'.format(self.background_calculation_frame_chunk_height))
         if self.background_calculation_frames_to_skip_textbox.isEnabled():
             self.background_calculation_frames_to_skip_textbox.setText('{0}'.format(self.background_calculation_frames_to_skip))
+        if self.initial_pixel_search_combobox.isEnabled():
+            if self.initial_pixel_search == 'brightest':
+                self.initial_pixel_search_combobox.setCurrentIndex(0)
+            if self.initial_pixel_search == 'darkest':
+                self.initial_pixel_search_combobox.setCurrentIndex(1)
+        if self.invert_threshold_combobox.isEnabled():
+            if self.invert_threshold:
+                self.invert_threshold_combobox.setCurrentIndex(0)
+            else:
+                self.invert_threshold_combobox.setCurrentIndex(1)
+        if self.range_angles_textbox.isEnabled():
+            self.range_angles_textbox.setText('{0}'.format(self.range_angles))
     def update_tracking_parameters_buttons(self, activate = False, inactivate = False):
         if activate:
             if not self.load_default_tracking_parameters_button.isEnabled():
@@ -1687,6 +1866,19 @@ class TrackingContent(QMainWindow):
         if self.video_path:
             self.get_video_attributes()
             self.update_descriptors()
+            if len(self.loaded_videos_and_parameters_dict) == 0:
+                self.loaded_videos_and_parameters_dict[self.video_path] = {  'tracking_parameters' : None,
+                                                                        'colour_parameters' : None}
+                self.loaded_videos_listbox.addItem(self.video_path)
+                self.loaded_videos_listbox.setCurrentRow(0)
+            else:
+                if self.video_path not in self.loaded_videos_and_parameters_dict.keys():
+                    self.loaded_videos_and_parameters_dict[self.video_path] = {  'tracking_parameters' : None,
+                                                                            'colour_parameters' : None}
+                    self.loaded_videos_listbox.addItem(self.video_path)
+                    self.loaded_videos_listbox.setCurrentRow(self.loaded_videos_listbox.count() - 1)
+                else:
+                    self.loaded_videos_listbox.setCurrentRow(list(self.loaded_videos_and_parameters_dict.keys()).index(self.video_path))
             success, self.frame = ut.load_frame_into_memory(self.video_path, self.frame_number - 1)
             if success and self.frame is not None:
                 self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height)
@@ -1726,9 +1918,9 @@ class TrackingContent(QMainWindow):
                 if success and self.frame is not None:
                     use_grayscale = True
                     if self.tracking_method == 'free_swimming':
-                        self.frame = ut.apply_threshold_to_frame(ut.apply_median_blur_to_frame(ut.subtract_background_from_frame(self.frame, self.background)), self.eyes_threshold)
+                        self.frame = ut.apply_threshold_to_frame(ut.apply_median_blur_to_frame(ut.subtract_background_from_frame(self.frame, self.background)), self.eyes_threshold, invert = self.invert_threshold)
                     elif self.tracking_method == 'head_fixed':
-                        self.frame = ut.apply_threshold_to_frame(self.frame, self.eyes_threshold, invert = True)
+                        self.frame = ut.apply_threshold_to_frame(self.frame, self.eyes_threshold, invert = self.invert_threshold)
                     if magnify:
                         self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = self.preview_frame_window_label_size[0] + 100, grayscale = use_grayscale)
                     if demagnify:
@@ -1748,7 +1940,7 @@ class TrackingContent(QMainWindow):
                     use_grayscale = True
                     if self.preview_background_subtracted_frame:
                         if self.preview_tracking_results:
-                            results = ut.track_tail_in_frame(self.frame, self.background, success, self.n_tail_points, self.dist_tail_points, self.dist_eyes, self.dist_swim_bladder, self.pixel_threshold, self.extended_eyes_calculation, self.eyes_threshold, self.median_blur, self.tracking_method)
+                            results = ut.track_tail_in_frame(self.frame, self.background, success, self.n_tail_points, self.dist_tail_points, self.dist_eyes, self.dist_swim_bladder, self.pixel_threshold, self.extended_eyes_calculation, self.eyes_threshold, self.median_blur, self.tracking_method, self.initial_pixel_search, self.invert_threshold, self.range_angles)
                             self.frame = ut.subtract_background_from_frame(self.frame, self.background)
                             if results is not None:
                                 self.frame = ut.annotate_tracking_results_onto_frame(self.frame, results, self.colours, self.line_length, self.extended_eyes_calculation, self.eyes_line_length)
@@ -1756,7 +1948,7 @@ class TrackingContent(QMainWindow):
                         else:
                             self.frame = ut.subtract_background_from_frame(self.frame, self.background)
                     elif self.preview_tracking_results:
-                        results = ut.track_tail_in_frame(self.frame, self.background, success, self.n_tail_points, self.dist_tail_points, self.dist_eyes, self.dist_swim_bladder, self.pixel_threshold, self.extended_eyes_calculation, self.eyes_threshold, self.median_blur, self.tracking_method)
+                        results = ut.track_tail_in_frame(self.frame, self.background, success, self.n_tail_points, self.dist_tail_points, self.dist_eyes, self.dist_swim_bladder, self.pixel_threshold, self.extended_eyes_calculation, self.eyes_threshold, self.median_blur, self.tracking_method, self.initial_pixel_search, self.invert_threshold, self.range_angles)
                         if results is not None:
                             self.frame = ut.annotate_tracking_results_onto_frame(self.frame, results, self.colours, self.line_length, self.extended_eyes_calculation, self.eyes_line_length)
                             use_grayscale = False
@@ -1791,14 +1983,19 @@ class TrackingContent(QMainWindow):
         self.eyes_line_length = 5
         self.median_blur = 3
         self.save_video = False
-        self.save_tracked_video_combobox.setCurrentIndex(1)
+        # self.save_tracked_video_combobox.setCurrentIndex(1)
         self.extended_eyes_calculation = False
-        self.extended_eyes_calculation_combobox.setCurrentIndex(1)
+        # self.extended_eyes_calculation_combobox.setCurrentIndex(1)
         self.background_calculation_method = 'brightest'
-        self.background_calculation_method_combobox.setCurrentIndex(0)
+        # self.background_calculation_method_combobox.setCurrentIndex(0)
         self.background_calculation_frame_chunk_width = 250
         self.background_calculation_frame_chunk_height = 250
         self.background_calculation_frames_to_skip = 10
+        self.initial_pixel_search = 'brightest'
+        # self.initial_pixel_search_combobox.setCurrentIndex(0)
+        self.invert_threshold = False
+        # self.invert_threshold_combobox.setCurrentIndex(1)
+        self.range_angles = 120
         self.update_tracking_parameters()
         if self.preview_frame:
             self.trigger_update_preview()
@@ -1820,6 +2017,12 @@ class TrackingContent(QMainWindow):
             self.eyes_line_length = tracking_parameters['eyes_line_length']
             self.save_video = tracking_parameters['save_video']
             self.extended_eyes_calculation = tracking_parameters['extended_eyes_calculation']
+            self.background_calculation_method = tracking_parameters['background_calculation_method']
+            self.background_calculation_frame_chunk_width = tracking_parameters['background_calculation_frame_chunk_width']
+            self.background_calculation_frame_chunk_height = tracking_parameters['background_calculation_frame_chunk_height']
+            self.background_calculation_frames_to_skip = tracking_parameters['background_calculation_frames_to_skip']
+            self.initial_pixel_search = tracking_parameters['initial_pixel_search']
+            self.invert_threshold = tracking_parameters['invert_threshold']
             self.update_colours()
             self.update_tracking_parameters()
             self.trigger_update_preview()
@@ -1834,7 +2037,12 @@ class TrackingContent(QMainWindow):
             'n_frames' : self.n_frames, 'line_length' : self.line_length,
             'pixel_threshold' : self.pixel_threshold, 'frame_change_threshold' : self.frame_change_threshold,
             'eyes_threshold' : self.eyes_threshold, 'eyes_line_length' : self.eyes_line_length,
-            'save_video' : self.save_video, 'extended_eyes_calculation' : self.extended_eyes_calculation}
+            'save_video' : self.save_video, 'extended_eyes_calculation' : self.extended_eyes_calculation,
+            'background_calculation_method' : self.background_calculation_method,
+            'background_calculation_frame_chunk_width' : self.background_calculation_frame_chunk_width,
+            'background_calculation_frame_chunk_height' : self.background_calculation_frame_chunk_height,
+            'background_calculation_frames_to_skip' : self.background_calculation_frames_to_skip,
+            'initial_pixel_search' : self.initial_pixel_search, 'invert_threshold' : self.invert_threshold}
         np.save('saved_parameters\\tracking_parameters.npy', tracking_parameters)
     def trigger_track_video(self):
         if self.tracking_video_thread is None:
@@ -1857,6 +2065,8 @@ class TrackingContent(QMainWindow):
             self.track_video_thread.save_video = self.save_video
             self.track_video_thread.extended_eyes_calculation = self.extended_eyes_calculation
             self.track_video_thread.eyes_threshold = self.eyes_threshold
+            self.track_video_thread.initial_pixel_search = self.initial_pixel_search
+            self.track_video_thread.range_angles = self.range_angles
             self.track_video_thread.start()
         elif not self.track_video_thread.isRunning():
             self.track_video_thread = TrackVideoThread()
@@ -1878,6 +2088,8 @@ class TrackingContent(QMainWindow):
             self.track_video_thread.save_video = self.save_video
             self.track_video_thread.extended_eyes_calculation = self.extended_eyes_calculation
             self.track_video_thread.eyes_threshold = self.eyes_threshold
+            self.track_video_thread.initial_pixel_search = self.initial_pixel_search
+            self.track_video_thread.range_angles = self.range_angles
             self.track_video_thread.start()
     def trigger_unload_all_tracking(self):
         if self.preview_background_checkbox.isChecked():
@@ -1897,6 +2109,8 @@ class TrackingContent(QMainWindow):
             del(self.colour_label_list[-1])
             del(self.colour_textbox_list[-1])
             del(self.colour_button_list[-1])
+        if self.video_path:
+            self.loaded_videos_listbox.clear()
         self.initialize_class_variables()
         self.trigger_load_default_tracking_parameters()
         self.update_descriptors()
@@ -1984,6 +2198,31 @@ class TrackingContent(QMainWindow):
             else:
                 self.frame_number = 1
                 self.trigger_update_preview()
+    def trigger_unload_selected_video(self):
+        if len(self.loaded_videos_and_parameters_dict) > 0:
+            if len(self.loaded_videos_and_parameters_dict) == 1:
+                self.trigger_unload_all_tracking()
+            else:
+                index = list(self.loaded_videos_and_parameters_dict.keys()).index(self.video_path)
+                self.loaded_videos_listbox.takeItem(index)
+                if index == self.loaded_videos_listbox.count():
+                    index -= 1
+                self.loaded_videos_listbox.setCurrentRow(index)
+                self.loaded_videos_and_parameters_dict.pop(self.video_path, None)
+                self.video_path = self.loaded_videos_listbox.currentItem().text()
+                self.get_video_attributes()
+                self.update_descriptors()
+                success, self.frame = ut.load_frame_into_memory(self.video_path, self.frame_number - 1)
+                if success and self.frame is not None:
+                    self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height)
+                    self.update_preview_frame_window()
+                    self.update_preview_frame_window_scroll_bars()
+                    self.update_frame_window_slider(activate = True)
+                    self.update_preview_frame_number_textbox(activate = True)
+                    self.update_video_time_textbox(activate = True)
+                    self.update_video_playback_buttons(activate = True, activate_pause_video_button = True)
+                    self.update_frame_change_buttons(activate = True)
+                    self.update_interactive_frame_buttons(activate = True)
 
     # Defining Check Functions
     def check_preview_frame_number_textbox(self):
@@ -2309,10 +2548,56 @@ class TrackingContent(QMainWindow):
             self.background_calculation_frames_to_skip = int(self.background_calculation_frames_to_skip_textbox.text())
         else:
             self.background_calculation_frames_to_skip_textbox.setText(str(self.background_calculation_frames_to_skip))
+    def check_initial_pixel_search_combobox(self):
+        current_index = self.initial_pixel_search_combobox.currentIndex()
+        if current_index == 0:
+            self.initial_pixel_search = 'brightest'
+        else:
+            self.initial_pixel_search = 'darkest'
+        if self.preview_tracking_results:
+            self.trigger_update_preview()
+    def check_add_video_button(self):
+        self.trigger_open_video()
+    def check_invert_threshold_combobox(self):
+        current_index = self.invert_threshold_combobox.currentIndex()
+        if current_index == 0:
+            self.invert_threshold = True
+        else:
+            self.invert_threshold = False
+        if self.preview_tracking_results or self.preview_eyes_threshold:
+            self.trigger_update_preview()
+    def check_remove_all_videos_button(self):
+        self.trigger_unload_all_tracking()
+    def check_loaded_videos_listbox_item_clicked(self):
+        self.video_path = self.loaded_videos_listbox.currentItem().text()
+        # print(self.loaded_videos_listbox.currentItem().text())
+        self.get_video_attributes()
+        self.update_descriptors()
+        success, self.frame = ut.load_frame_into_memory(self.video_path, self.frame_number - 1)
+        if success and self.frame is not None:
+            self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height)
+            self.update_preview_frame_window()
+            self.update_preview_frame_window_scroll_bars()
+            self.update_frame_window_slider(activate = True)
+            self.update_preview_frame_number_textbox(activate = True)
+            self.update_video_time_textbox(activate = True)
+            self.update_video_playback_buttons(activate = True, activate_pause_video_button = True)
+            self.update_frame_change_buttons(activate = True)
+            self.update_interactive_frame_buttons(activate = True)
+    def check_range_angles_textbox(self):
+        if self.range_angles_textbox.text().isdigit():
+            self.range_angles = int(self.range_angles_textbox.text())
+            if self.preview_tracking_results:
+                self.trigger_update_preview()
+        else:
+            self.range_angles_textbox.setText(str(self.range_angles))
+    def check_remove_selected_video_button(self):
+        self.trigger_unload_selected_video()
 
     # Defining Event Functions
     def event_preview_frame_window_label_mouse_clicked(self, event):
         self.initial_mouse_position = (event.x(), event.y())
+        # print(self.initial_mouse_position)
         if self.magnify_frame:
             if qApp.mouseButtons() & Qt.LeftButton:
                 self.trigger_update_preview(magnify = True)
@@ -2329,6 +2614,7 @@ class TrackingContent(QMainWindow):
                 self.preview_frame_window.verticalScrollBar().setValue(new_y)
         event.accept()
     def event_preview_frame_window_label_mouse_moved(self, event):
+        # print(event.x(), event.y())
         if self.pan_frame:
             if qApp.mouseButtons() & Qt.LeftButton:
                 new_frame_pos = (event.x() - self.initial_mouse_position[0], event.y() - self.initial_mouse_position[1])
@@ -2338,6 +2624,8 @@ class TrackingContent(QMainWindow):
                     if self.preview_frame_window_label_size[1] > self.preview_frame_window_size[1]:
                         self.preview_frame_window.verticalScrollBar().setValue(self.preview_frame_window.verticalScrollBar().value() - new_frame_pos[1])
         event.accept()
+    def event_preview_frame_window_wheel_scrolled(self, event):
+        event.ignore()
 
 class TrackVideoThread(QThread):
 
@@ -2361,11 +2649,14 @@ class TrackVideoThread(QThread):
         self.save_video = None
         self.extended_eyes_calculation = None
         self.eyes_threshold = None
+        self.initial_pixel_search = None
+        self.invert_threshold = None
+        self.range_angles = None
 
     def run(self):
         if self.background_path == 'Background calculated and loaded into memory/Background calculated and loaded into memory':
             self.background_path = None
-        ut.track_video(self.video_path, self.colours, self.n_tail_points, self.dist_tail_points, self.dist_eyes, self.dist_swim_bladder, tracking_method = self.tracking_method, save_video = self.save_video, extended_eyes_calculation = self.extended_eyes_calculation, n_frames = self.n_frames, starting_frame = self.starting_frame, save_path = self.save_path, background_path = self.background_path, line_length = self.line_length, video_fps = self.video_fps, pixel_threshold = self.pixel_threshold, frame_change_threshold = self.frame_change_threshold, eyes_threshold = self.eyes_threshold)
+        ut.track_video(self.video_path, self.colours, self.n_tail_points, self.dist_tail_points, self.dist_eyes, self.dist_swim_bladder, tracking_method = self.tracking_method, save_video = self.save_video, extended_eyes_calculation = self.extended_eyes_calculation, n_frames = self.n_frames, starting_frame = self.starting_frame, save_path = self.save_path, background_path = self.background_path, line_length = self.line_length, video_fps = self.video_fps, pixel_threshold = self.pixel_threshold, frame_change_threshold = self.frame_change_threshold, eyes_threshold = self.eyes_threshold, initial_pixel_search = self.initial_pixel_search, invert_threshold = self.invert_threshold, range_angles = self.range_angles)
 
 class CalculateBackgroundThread(QThread):
 
@@ -2380,7 +2671,6 @@ class CalculateBackgroundThread(QThread):
         self.frames_to_skip = None
 
     def run(self):
-        print(self.background_calculation_method)
         self.background = ut.calculate_background(self.video_path, method = self.background_calculation_method, chunk_size = self.frame_chunk_size, frames_to_skip = self.frames_to_skip)
         self.background_calculated_signal.emit(True)
 
@@ -2501,7 +2791,6 @@ class PlottingContent(QMainWindow):
         self.video_path_basename = os.path.basename(self.video_path)
         self.video_n_frames = ut.get_total_frame_number_from_video(self.video_path)
         self.video_fps = ut.get_fps_from_video(self.video_path)
-        self.video_format = ut.get_video_format_from_video(self.video_path)
         self.video_frame_width, self.video_frame_height = ut.get_frame_size_from_video(self.video_path)
 
     def add_preview_frame_window(self):
@@ -2509,9 +2798,9 @@ class PlottingContent(QMainWindow):
         new_y = (self.main_window_y_offset / 1400) * self.main_window_height
 
         self.preview_frame_window = QScrollArea(self)
-        self.preview_frame_window.setFrameShape(QFrame.Panel)
-        self.preview_frame_window.setFrameShadow(QFrame.Sunken)
-        self.preview_frame_window.setLineWidth(5)
+        self.preview_frame_window.setFrameShape(QFrame.StyledPanel)
+        # self.preview_frame_window.setFrameShadow(QFrame.Sunken)
+        # self.preview_frame_window.setLineWidth(5)
         self.preview_frame_window.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.preview_frame_window.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.preview_frame_window.move(new_x, new_y)
@@ -2717,9 +3006,9 @@ class PlottingContent(QMainWindow):
         self.data_plot_window = QScrollArea(self)
         self.data_plot_window.move(new_x, new_y)
         self.data_plot_window.resize(new_width, new_height)
-        self.data_plot_window.setFrameShape(QFrame.Panel)
-        self.data_plot_window.setFrameShadow(QFrame.Sunken)
-        self.data_plot_window.setLineWidth(5)
+        self.data_plot_window.setFrameShape(QFrame.StyledPanel)
+        # self.data_plot_window.setFrameShadow(QFrame.Sunken)
+        # self.data_plot_window.setLineWidth(5)
 
     def update_preview_frame(self, frame, frame_width, frame_height, scaled_width = None, grayscale = False):
         if grayscale:
@@ -3222,9 +3511,9 @@ class DataPlot(QMainWindow):
                 self.tail_angle_frames = np.append(self.tail_angle_frames, self.tail_angle_frames[i - 1] + 1)
                 self.tail_angle_frames = np.append(self.tail_angle_frames, self.tail_angle_frames[i - 1] + 2)
 
-        for i in range(len(self.tail_angles)):
-            for j in self.tail_angle_frames:
-                self.tail_angles[i][j] = 0.0
+        # for i in range(len(self.tail_angles)):
+        #     for j in self.tail_angle_frames:
+        #         self.tail_angles[i][j] = 0.0
         self.smoothed_tail_angles = [np.convolve(self.tail_angles[i], np.ones(self.smoothing_factor)/self.smoothing_factor, mode = 'same') for i in range(len(self.tail_angles))]
 
         j = 0

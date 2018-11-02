@@ -191,7 +191,7 @@ def calculate_background(video_path, method = 'brightest', save_path = None, sav
     # Return the calculated background.
     return background
 
-def calculate_next_coords(init_coords, radius, frame, method = 'brightest', angle = 0, n_angles = 20, range_angles = np.pi * 2.0 / 3.0, tail_calculation = True):
+def calculate_next_coords(init_coords, radius, frame, method = 'brightest', angle = 0, n_angles = 20, range_angles = 120, tail_calculation = True):
     '''
     Function that calculates the next set of coordinates provided an initial set of coordinates, radius, and frame.
 
@@ -226,14 +226,13 @@ def calculate_next_coords(init_coords, radius, frame, method = 'brightest', angl
     if not isinstance(method, str) or method not in ['brightest', 'darkest']:
         print('Error: method must be formatted as a string and must be one of the following: brightest or darkest.')
         return
+    range_angles = np.radians(range_angles)
     # Calculate list of angles.
     angles = np.linspace(angle - range_angles / 2, angle + range_angles / 2, n_angles)
     # Calculate list of all potential next coordinates.
-    next_coords = [[int(round(init_coords[0] + (radius * np.sin(angles[i])))), int(round(init_coords[1] + (radius * np.cos(angles[i]))))] for i in range(len(angles))]
-    # Remove duplicate coordinates.
-    next_coords = [next_coords[i] for i in range(len(next_coords)) if next_coords[i][0] != next_coords[i - 1][0] or next_coords[i][1] != next_coords[i - 1][1]]
+    next_coords = np.unique([[int(round(init_coords[0] + (radius * np.sin(angles[i])))), int(round(init_coords[1] + (radius * np.cos(angles[i]))))] for i in range(len(angles))], axis = 0)
     frame_shape = frame.shape
-    next_coords = [next_coords[i] for i in range(len(next_coords)) if next_coords[i][0] >= 0 and next_coords[i][0] < frame_shape[1] and next_coords[i][1] >= 0 and next_coords[i][1] < frame_shape[0]]
+    next_coords = [next_coords[i] for i in range(len(next_coords)) if next_coords[i][0] >= 0 and next_coords[i][0] < frame_shape[0] and next_coords[i][1] >= 0 and next_coords[i][1] < frame_shape[1]]
     if method == 'brightest':
         # Get the list of coordinates where the potential next coordinates are the brightest pixels in the frame.
         coords = np.transpose(np.where(frame == np.max([frame[i[0]][i[1]] for i in next_coords])))
@@ -570,7 +569,7 @@ def preview_tracking_results(video_path, colours, n_tail_points, dist_tail_point
     # Unload the video from memory.
     capture.release()
 
-def track_tail_in_frame(frame, background, success, n_tail_points, dist_tail_points, dist_eyes, dist_swim_bladder, pixel_threshold, extended_eyes_calculation, eyes_threshold, median_blur_value, tracking_method):
+def track_tail_in_frame(frame, background, success, n_tail_points, dist_tail_points, dist_eyes, dist_swim_bladder, pixel_threshold, extended_eyes_calculation, eyes_threshold, median_blur_value, tracking_method, initial_pixel_search, invert_threshold, range_angles):
 
     # Initialize variables for each frame.
     first_eye_coords = [np.nan, np.nan]
@@ -597,7 +596,7 @@ def track_tail_in_frame(frame, background, success, n_tail_points, dist_tail_poi
                         # Calculate the angle between the two eyes.
                         eye_angle = np.arctan2(second_eye_coords[0] - first_eye_coords[0], second_eye_coords[1] - first_eye_coords[1])
                         # Apply a threshold to the frame.
-                        thresh = cv2.threshold(frame, eyes_threshold, 255, cv2.THRESH_BINARY)[1]
+                        thresh = apply_threshold_to_frame(frame, eyes_threshold, invert = invert_threshold)
                         # Find the contours of the binary regions in the thresholded frame.
                         contours = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)[1]
                         # Iterate through each contour in the list of contours.
@@ -659,7 +658,7 @@ def track_tail_in_frame(frame, background, success, n_tail_points, dist_tail_poi
                             # Calculate the next tail angle as the angle between the last two tail points.
                             tail_angle = np.arctan2(tail_point_coords[m - 1][0] - tail_point_coords[m - 2][0], tail_point_coords[m - 1][1] - tail_point_coords[m - 2][1])
                         # Calculate the next set of tail coordinates.
-                        tail_point_coords[m] = calculate_next_coords(tail_point_coords[m - 1], dist_tail_points, frame, angle = tail_angle)
+                        tail_point_coords[m] = calculate_next_coords(tail_point_coords[m - 1], dist_tail_points, frame, angle = tail_angle, range_angles = range_angles)
                     tracking_results = np.array([np.array(first_eye_coords), np.array(second_eye_coords), first_eye_angle, second_eye_angle, np.array(heading_coords), np.array(body_coords), heading_angle, np.array(tail_point_coords)])
                     return tracking_results
                 else:
@@ -669,16 +668,20 @@ def track_tail_in_frame(frame, background, success, n_tail_points, dist_tail_poi
         elif tracking_method == 'head_fixed':
             if success:
                 if np.min(frame) < pixel_threshold:
-                    # Return the coordinate of the brightest pixel.
-                    first_eye_coords = [np.where(frame == np.min(frame))[0][0], np.where(frame == np.min(frame))[1][0]]
+                    if initial_pixel_search == 'darkest':
+                        # Return the coordinate of the brightest pixel.
+                        first_eye_coords = [np.where(frame == np.min(frame))[0][0], np.where(frame == np.min(frame))[1][0]]
+                    elif initial_pixel_search == 'brightest':
+                        # Return the coordinate of the brightest pixel.
+                        first_eye_coords = [np.where(frame == np.max(frame))[0][0], np.where(frame == np.max(frame))[1][0]]
                     # Calculate the next brightest pixel that lies on the circle drawn around the first eye coordinates and has a radius equal to the distance between the eyes.
-                    second_eye_coords = calculate_next_coords(first_eye_coords, dist_eyes, frame, method = 'darkest', n_angles = 100, range_angles = 2 * np.pi, tail_calculation = False)
+                    second_eye_coords = calculate_next_coords(first_eye_coords, dist_eyes, frame, method = initial_pixel_search, n_angles = 100, range_angles = 2 * np.pi, tail_calculation = False)
                     # Check whether to to an additional process to calculate eye angles.
                     if extended_eyes_calculation:
                         # Calculate the angle between the two eyes.
                         eye_angle = np.arctan2(second_eye_coords[0] - first_eye_coords[0], second_eye_coords[1] - first_eye_coords[1])
                         # Apply a threshold to the frame.
-                        thresh = cv2.threshold(frame, eyes_threshold, 255, cv2.THRESH_BINARY)[1]
+                        thresh = apply_threshold_to_frame(frame, eyes_threshold, invert = invert_threshold)
                         # Find the contours of the binary regions in the thresholded frame.
                         contours = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)[1]
                         # Iterate through each contour in the list of contours.
@@ -932,8 +935,8 @@ def track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes,
                 save_background = True, extended_eyes_calculation = False,
                 eyes_threshold = None, line_length = 0, video_fps = None,
                 pixel_threshold = 100, frame_change_threshold = 10, convert_colours_from_RGB_to_BGR = False,
-                range_angles = np.pi * 2.0 / 3.0, subtract_background_before_eye_calculation = True,
-                median_blur_value = 3):
+                range_angles = 120, median_blur_value = 3, initial_pixel_search = 'brightest',
+                invert_threshold = False):
     '''
     Tracks a video.
 
@@ -1048,6 +1051,8 @@ def track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes,
     prev_frame = None
     prev_eye_angle = None
 
+    range_angles = np.radians(range_angles)
+
     if tracking_method == 'free_swimming':
         # Iterate through each frame.
         for n in range(n_frames):
@@ -1105,7 +1110,7 @@ def track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes,
                                             # Calculate the new eye angle.
                                             eye_angle = np.arctan2(second_eye_coords[0] - first_eye_coords[0], second_eye_coords[1] - first_eye_coords[1])
                                 # Apply a threshold to the frame.
-                                thresh = cv2.threshold(frame, eyes_threshold, 255, cv2.THRESH_BINARY)[1]
+                                thresh = apply_threshold_to_frame(frame, eyes_threshold, invert = invert_threshold)
                                 # Find the contours of the binary regions in the thresholded frame.
                                 contours = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)[1]
                                 # Iterate through each contour in the list of contours.
@@ -1266,10 +1271,13 @@ def track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes,
                             swim_bladder_coords = tail_coord_array[len(tail_coord_array) - 1][0]
                             tail_point_coords = tail_coord_array[len(tail_coord_array) - 1][1:]
                         else:
-                            # Return the coordinate of the brightest pixel.
-                            first_eye_coords = [np.where(frame == np.min(frame))[0][0], np.where(frame == np.min(frame))[1][0]]
+                            if initial_pixel_search == 'darkest':
+                                # Return the coordinate of the brightest pixel.
+                                first_eye_coords = [np.where(frame == np.min(frame))[0][0], np.where(frame == np.min(frame))[1][0]]
+                            elif initial_pixel_search == 'brightest':
+                                first_eye_coords = [np.where(frame == np.max(frame))[0][0], np.where(frame == np.max(frame))[1][0]]
                             # Calculate the next brightest pixel that lies on the circle drawn around the first eye coordinates and has a radius equal to the distance between the eyes.
-                            second_eye_coords = calculate_next_coords(first_eye_coords, dist_eyes, frame, method = 'darkest', n_angles = 100, range_angles = 2 * np.pi, tail_calculation = False)
+                            second_eye_coords = calculate_next_coords(first_eye_coords, dist_eyes, frame, method = initial_pixel_search, n_angles = 100, range_angles = 2 * np.pi, tail_calculation = False)
                             # Check whether to to an additional process to calculate eye angles.
                             if extended_eyes_calculation:
                                 # Calculate the angle between the two eyes.
@@ -1286,7 +1294,7 @@ def track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes,
                                             # Calculate the new eye angle.
                                             eye_angle = np.arctan2(second_eye_coords[0] - first_eye_coords[0], second_eye_coords[1] - first_eye_coords[1])
                                 # Apply a threshold to the frame.
-                                thresh = cv2.threshold(frame, eyes_threshold, 255, cv2.THRESH_BINARY)[1]
+                                thresh = apply_threshold_to_frame(frame, eyes_threshold, invert = invert_threshold)
                                 # Find the contours of the binary regions in the thresholded frame.
                                 contours = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)[1]
                                 # Iterate through each contour in the list of contours.
