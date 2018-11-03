@@ -274,7 +274,15 @@ class TrackingContent(QMainWindow):
             self.preview_frame_window_x_offset = 30
             self.preview_frame_window_y_offset = 30
             self.preview_frame_window_label_size = (self.preview_frame_window_size[0] - self.preview_frame_window_x_offset, self.preview_frame_window_size[1] - self.preview_frame_window_y_offset)
-            self.descriptors_window_size = (1060, 1000)
+            self.loaded_videos_window_size = (1060, 490)
+            self.loaded_videos_x_offset = 20
+            self.loaded_videos_y_offset = 60
+            self.loaded_videos_y_spacing = 10
+            self.loaded_videos_x_spacing = 10
+            self.loaded_videos_listbox_size = (1020, 290)
+            self.loaded_videos_button_size = (333.33, 50)
+            self.loaded_videos_button_2_size = (505, 50)
+            self.descriptors_window_size = (1060, 500)
             self.descriptors_x_offset = 10
             self.descriptors_y_offset = 60
             self.descriptors_height = 30
@@ -2078,6 +2086,10 @@ class TrackingContent(QMainWindow):
             self.track_video_thread.eyes_threshold = self.eyes_threshold
             self.track_video_thread.initial_pixel_search = self.initial_pixel_search
             self.track_video_thread.range_angles = self.range_angles
+            self.track_video_thread.background_calculation_method = self.background_calculation_method
+            self.track_video_thread.background_calculation_frame_chunk_width = self.background_calculation_frame_chunk_width
+            self.track_video_thread.background_calculation_frame_chunk_height = self.background_calculation_frame_chunk_height
+            self.track_video_thread.background_calculation_frames_to_skip = self.background_calculation_frames_to_skip
             self.track_video_thread.start()
         elif not self.track_video_thread.isRunning():
             self.track_video_thread = TrackVideoThread()
@@ -2765,7 +2777,6 @@ class TrackAllVideosThread(QThread):
                             save_path = save_path, background_path = background_path, line_length = line_length, video_fps = video_fps, pixel_threshold = pixel_threshold,
                             frame_change_threshold = frame_change_threshold, eyes_threshold = eyes_threshold, initial_pixel_search = initial_pixel_search,
                             invert_threshold = invert_threshold, range_angles = range_angles, convert_colours_from_RGB_to_BGR = True)
-
 
 class CalculateBackgroundThread(QThread):
 

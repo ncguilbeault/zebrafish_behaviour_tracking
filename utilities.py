@@ -1008,6 +1008,7 @@ def track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes,
     else:
         background = cv2.imread(background_path, cv2.IMREAD_GRAYSCALE).astype(np.uint8)
 
+    # print(len(background), len(background[0]), len(frame), len(frame[0]))
     video_n_frames = get_total_frame_number_from_video(video_path)
     frame_size = get_frame_size_from_video(video_path)
 
