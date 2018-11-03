@@ -281,7 +281,7 @@ class TrackingContent(QMainWindow):
             self.preview_frame_window_x_offset = 30
             self.preview_frame_window_y_offset = 30
             self.preview_frame_window_label_size = (self.preview_frame_window_size[0] - self.preview_frame_window_x_offset, self.preview_frame_window_size[1] - self.preview_frame_window_y_offset)
-            self.loaded_videos_window_size = (1060, 490)
+            self.loaded_videos_window_size = (1060, 540)
             self.loaded_videos_x_offset = 20
             self.loaded_videos_y_offset = 60
             self.loaded_videos_y_spacing = 10
@@ -289,7 +289,8 @@ class TrackingContent(QMainWindow):
             self.loaded_videos_listbox_size = (1020, 290)
             self.loaded_videos_button_size = (333.33, 50)
             self.loaded_videos_button_2_size = (505, 50)
-            self.descriptors_window_size = (1060, 500)
+            self.loaded_videos_button_3_size = (247.5, 50)
+            self.descriptors_window_size = (1060, 450)
             self.descriptors_x_offset = 10
             self.descriptors_y_offset = 60
             self.descriptors_height = 30
@@ -521,14 +522,6 @@ class TrackingContent(QMainWindow):
         # self.update_background_button.setFont(self.font_loaded_videos_buttons)
         # self.update_background_button.clicked.connect(self.check_update_background_button)
 
-        # self.update_tracking_parameters_button = QPushButton('Update Tracking Parameters', self)
-        # new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (0 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
-        # new_y = ((self.main_window_y_offset + self.loaded_videos_y_offset + self.loaded_videos_listbox_size[1] + (2 * (self.loaded_videos_y_spacing + self.loaded_videos_button_size[1])) + self.loaded_videos_y_spacing) / 1400) * self.main_window_height
-        # self.update_tracking_parameters_button.move(new_x, new_y)
-        # self.update_tracking_parameters_button.resize(new_width, new_height)
-        # self.update_tracking_parameters_button.setFont(self.font_loaded_videos_buttons)
-        # self.update_tracking_parameters_button.clicked.connect(self.check_update_background_button)
-
         # self.update_colour_parameters_button = QPushButton('Update Colour Parameters', self)
         # new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (1 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
         # self.update_colour_parameters_button.move(new_x, new_y)
@@ -577,6 +570,14 @@ class TrackingContent(QMainWindow):
         self.track_all_videos_button.setFont(self.font_loaded_videos_buttons)
         self.track_all_videos_button.setCheckable(True)
         self.track_all_videos_button.clicked.connect(self.check_track_all_videos_button)
+
+        self.update_tracking_parameters_button = QPushButton('Update Tracking Parameters', self)
+        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (0 * (self.loaded_videos_button_2_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
+        new_y = ((self.main_window_y_offset + self.loaded_videos_y_offset + self.loaded_videos_listbox_size[1] + (2 * (self.loaded_videos_y_spacing + self.loaded_videos_button_2_size[1])) + self.loaded_videos_y_spacing) / 1400) * self.main_window_height
+        self.update_tracking_parameters_button.move(new_x, new_y)
+        self.update_tracking_parameters_button.resize(new_width, new_height)
+        self.update_tracking_parameters_button.setFont(self.font_loaded_videos_buttons)
+        # self.update_tracking_parameters_button.clicked.connect(self.check_update_tracking_parameters_button)
 
         self.update_loaded_videos_buttons(inactivate = True)
     def add_descriptors_window(self):
@@ -1933,13 +1934,15 @@ class TrackingContent(QMainWindow):
             self.update_descriptors()
             if len(self.loaded_videos_and_parameters_dict) == 0:
                 self.loaded_videos_and_parameters_dict[self.video_path] = {  'tracking_parameters' : None,
-                                                                        'colour_parameters' : None}
+                                                                        'colour_parameters' : None,
+                                                                        'background' : None}
                 self.loaded_videos_listbox.addItem(self.video_path)
                 self.loaded_videos_listbox.setCurrentRow(0)
             else:
                 if self.video_path not in self.loaded_videos_and_parameters_dict.keys():
                     self.loaded_videos_and_parameters_dict[self.video_path] = {  'tracking_parameters' : None,
-                                                                            'colour_parameters' : None}
+                                                                            'colour_parameters' : None,
+                                                                            'background' : None}
                     self.loaded_videos_listbox.addItem(self.video_path)
                     self.loaded_videos_listbox.setCurrentRow(self.loaded_videos_listbox.count() - 1)
                 else:
@@ -2307,14 +2310,15 @@ class TrackingContent(QMainWindow):
         for video_path in self.loaded_videos_and_parameters_dict.keys():
             self.loaded_videos_and_parameters_dict[video_path]['tracking_parameters'] = self.tracking_parameters_dict
             self.loaded_videos_and_parameters_dict[video_path]['colour_parameters'] = self.colours
-        if self.track_all_videos_thread is None:
-            self.track_all_videos_thread = TrackAllVideosThread()
-            self.track_all_videos_thread.loaded_videos_and_parameters_dict = self.loaded_videos_and_parameters_dict
-            self.track_all_videos_thread.start()
-        elif not self.track_all_videos_thread.isRunning():
-            self.track_all_videos_thread = TrackAllVideosThread()
-            self.track_all_videos_thread.loaded_videos_and_parameters_dict = self.loaded_videos_and_parameters_dict
-            self.track_all_videos_thread.start()
+            self.loaded_videos_and_parameters_dict[video_path]['background'] = self.background
+        if self.track_all_videos_progress_window is None:
+            self.track_all_videos_progress_window = TrackAllVideosThread()
+            self.track_all_videos_progress_window.loaded_videos_and_parameters_dict = self.loaded_videos_and_parameters_dict
+            self.track_all_videos_progress_window.start()
+        # elif not self.track_all_videos_thread.isRunning():
+        #     self.track_all_videos_thread = TrackAllVideosThread()
+        #     self.track_all_videos_thread.loaded_videos_and_parameters_dict = self.loaded_videos_and_parameters_dict
+        #     self.track_all_videos_thread.start()
 
     # Defining Check Functions
     def check_preview_frame_number_textbox(self):
@@ -2687,9 +2691,11 @@ class TrackingContent(QMainWindow):
         self.trigger_unload_selected_video()
     def check_track_selected_video_button(self):
         if self.track_video_progress_window is None:
-            if not self.track_video_progress_window.isRunning():
-                if self.video_path:
-                    self.trigger_track_video()
+            if self.video_path:
+                self.trigger_track_video()
+        elif not self.track_video_progress_window.isRunning():
+            if self.video_path:
+                self.trigger_track_video()
     def check_track_all_videos_button(self):
         if len(self.loaded_videos_and_parameters_dict) > 0:
             if len(self.loaded_videos_and_parameters_dict) == 1:
@@ -3576,6 +3582,182 @@ class TrackVideoThread(QThread):
         time.sleep(0.5)
 
         self.tracking_finished_signal.emit(True)
+
+class TrackVideoProgressWindow(QMainWindow):
+
+    # Defining Initialization Functions
+    def __init__(self):
+        super(TrackVideoProgressWindow, self).__init__()
+        self.initUI()
+
+    def initUI(self):
+        self.initialize_class_variables()
+        self.add_processing_video_label()
+        self.add_current_status_label()
+        self.add_current_tracking_progress_bar()
+        self.add_total_progress_label()
+        self.add_total_tracking_progress_bar()
+        self.add_total_time_elapsed_label()
+        self.add_cancel_tracking_button()
+        self.setWindowTitle('Video Tracking in Progress')
+        self.setFixedSize(500, 270)
+
+    def initialize_class_variables(self):
+        self.video_path = None
+        self.background = None
+        self.colours = None
+        self.background_calculation_method = None
+        self.background_calculation_frame_chunk_width = None
+        self.background_calculation_frame_chunk_height = None
+        self.background_calculation_frames_to_skip = None
+        self.save_background = None
+        self.tracking_method = None
+        self.initial_pixel_search = None
+        self.n_tail_points = None
+        self.dist_tail_points = None
+        self.dist_eyes = None
+        self.dist_swim_bladder = None
+        self.range_angles = None
+        self.median_blur = None
+        self.pixel_threshold = None
+        self.frame_change_threshold = None
+        self.heading_line_length = None
+        self.extended_eyes_calculation = None
+        self.eyes_threshold = None
+        self.invert_threshold = None
+        self.save_video = None
+        self.starting_frame = None
+        self.n_frames = None
+        self.save_path = None
+        self.video_fps = None
+        self.track_video_thread = None
+
+        self.video_n_frames = None
+
+    def add_processing_video_label(self):
+        self.processing_video_label = QLabel(self)
+        self.processing_video_label.move(40, 10)
+        self.processing_video_label.resize(400, 20)
+
+    def add_current_status_label(self):
+        self.current_status_label = QLabel(self)
+        self.current_status_label.move(40, 40)
+        self.current_status_label.resize(400, 20)
+
+    def add_current_tracking_progress_bar(self):
+        self.current_tracking_progress_bar = QProgressBar(self)
+        self.current_tracking_progress_bar.move(50, 70)
+        self.current_tracking_progress_bar.resize(400, 30)
+        self.current_tracking_progress_bar.setMinimum(0)
+
+    def add_total_progress_label(self):
+        self.total_progress_label = QLabel(self)
+        self.total_progress_label.move(40, 110)
+        self.total_progress_label.resize(400, 20)
+        self.total_progress_label.setText('Total Progress: ')
+
+    def add_total_tracking_progress_bar(self):
+        self.total_tracking_progress_bar = QProgressBar(self)
+        self.total_tracking_progress_bar.move(50, 140)
+        self.total_tracking_progress_bar.resize(400, 30)
+
+    def add_total_time_elapsed_label(self):
+        self.total_time_elapsed_label = QLabel(self)
+        self.total_time_elapsed_label.move(40, 180)
+        self.total_time_elapsed_label.resize(400, 20)
+
+    def add_cancel_tracking_button(self):
+        self.cancel_tracking_button = QPushButton('Cancel', self)
+        self.cancel_tracking_button.move(150, 210)
+        self.cancel_tracking_button.resize(200, 50)
+        self.cancel_tracking_button.clicked.connect(self.close)
+
+    def update_processing_video_label(self):
+        self.processing_video_label.setText('Processing Video: {0}'.format(self.video_path))
+
+    def update_progress_bar_range(self):
+        if self.n_frames is None:
+            self.current_tracking_progress_bar.setMaximum(self.video_n_frames)
+        else:
+            # if self.n_frames + self.starting_frame < self.video_n_frames:
+            self.current_tracking_progress_bar.setMaximum(self.n_frames)
+
+    def update_progress_bar_value(self, value, current_status):
+        self.current_tracking_progress_bar.setValue(value)
+
+    def update_current_status_label(self, value):
+        self.current_status_label.setText('Current Status: {0}'.format(value))
+
+    def update_total_time_elapsed_label(self, value):
+        elapsed_time = int(round(value, 0))
+        if elapsed_time == 1:
+            self.total_time_elapsed_label.setText('Total Time Elapsed: {0} second'.format(elapsed_time))
+        else:
+            self.total_time_elapsed_label.setText('Total Time Elapsed: {0} seconds'.format(elapsed_time))
+
+    def update_total_tracking_progress_bar_range(self):
+        if self.background is None and self.background_calculation_method == 'mode':
+            self.total_tracking_progress_bar.setMaximum(self.video_n_frames * 5)
+        elif self.background is None:
+            self.total_tracking_progress_bar.setMaximum(self.video_n_frames * 10)
+        else:
+            self.total_tracking_progress_bar.setMaximum(self.video_n_frames)
+
+    def update_total_tracking_progress_bar_value(self, value, current_status):
+        if current_status == 'Calculating Background':
+            self.total_tracking_progress_bar.setValue(value)
+        elif self.background is None and self.background_calculation_method == 'mode':
+            self.total_tracking_progress_bar.setValue(self.video_n_frames + (value * 4))
+        elif self.background is None:
+            self.total_tracking_progress_bar.setValue(self.video_n_frames + (value * 9))
+        else:
+            self.total_tracking_progress_bar.setValue(value)
+
+    def trigger_track_video(self):
+        self.track_video_thread = TrackVideoThread()
+        self.track_video_thread.video_path = self.video_path
+        self.track_video_thread.background = self.background
+        self.track_video_thread.colours = self.colours
+        self.track_video_thread.background_calculation_method = self.background_calculation_method
+        self.track_video_thread.background_calculation_frame_chunk_width = self.background_calculation_frame_chunk_width
+        self.track_video_thread.background_calculation_frame_chunk_height = self.background_calculation_frame_chunk_height
+        self.track_video_thread.background_calculation_frames_to_skip = self.background_calculation_frames_to_skip
+        self.track_video_thread.save_background = self.save_background
+        self.track_video_thread.tracking_method = self.tracking_method
+        self.track_video_thread.initial_pixel_search = self.initial_pixel_search
+        self.track_video_thread.n_tail_points = self.n_tail_points
+        self.track_video_thread.dist_tail_points = self.dist_tail_points
+        self.track_video_thread.dist_eyes = self.dist_eyes
+        self.track_video_thread.dist_swim_bladder = self.dist_swim_bladder
+        self.track_video_thread.range_angles = self.range_angles
+        self.track_video_thread.median_blur = self.median_blur
+        self.track_video_thread.pixel_threshold = self.pixel_threshold
+        self.track_video_thread.frame_change_threshold = self.frame_change_threshold
+        self.track_video_thread.heading_line_length = self.heading_line_length
+        self.track_video_thread.extended_eyes_calculation = self.extended_eyes_calculation
+        self.track_video_thread.eyes_threshold = self.eyes_threshold
+        self.track_video_thread.invert_threshold = self.invert_threshold
+        self.track_video_thread.save_video = self.save_video
+        self.track_video_thread.starting_frame = self.starting_frame
+        self.track_video_thread.n_frames = self.n_frames
+        self.track_video_thread.save_path = self.save_path
+        self.track_video_thread.video_fps = self.video_fps
+        self.track_video_thread.start()
+        self.track_video_thread.progress_signal.connect(self.update_progress_bar_value)
+        self.track_video_thread.progress_signal.connect(self.update_total_tracking_progress_bar_value)
+        self.track_video_thread.current_status_signal.connect(self.update_current_status_label)
+        self.track_video_thread.total_time_elapsed_signal.connect(self.update_total_time_elapsed_label)
+        self.track_video_thread.background_calculation_finished_signal.connect(self.trigger_reset_progress_bar)
+        self.track_video_thread.tracking_finished_signal.connect(self.close)
+
+    def trigger_reset_progress_bar(self):
+        self.current_tracking_progress_bar.reset()
+
+    def closeEvent(self, event):
+        if self.track_video_thread is not None:
+            if self.track_video_thread.isRunning():
+                self.track_video_thread.terminate()
+        event.accept()
 
 class TrackAllVideosThread(QThread):
 
