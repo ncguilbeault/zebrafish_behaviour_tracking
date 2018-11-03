@@ -930,6 +930,8 @@ def track_tail_in_video_without_multiprocessing(video_path, colours, n_tail_poin
     return results
 
 def track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes, dist_swim_bladder,
+                background_calculation_method = 'brightest', background_calculation_frames_to_skip = 10,
+                background_calculation_frame_chunk_width = 250, background_calculation_frame_chunk_height = 250,
                 tracking_method = 'free_swimming', save_video = True, n_frames = None,
                 starting_frame = 0, save_path = None, background_path = None,
                 save_background = True, extended_eyes_calculation = False,
@@ -1001,7 +1003,8 @@ def track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes,
 
     # Create or load background image.
     if background_path is None:
-        background = calculate_background(video_path, save_path = save_path, save_background = save_background)
+        background = calculate_background(video_path, method = background_calculation_method, chunk_size = [background_calculation_frame_chunk_width, background_calculation_frame_chunk_height],
+                                            frames_to_skip = background_calculation_frames_to_skip, save_path = save_path, save_background = save_background)
     else:
         background = cv2.imread(background_path, cv2.IMREAD_GRAYSCALE).astype(np.uint8)
 

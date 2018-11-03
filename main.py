@@ -2254,6 +2254,10 @@ class TrackingContent(QMainWindow):
         self.tracking_parameters_dict['initial_pixel_search'] = self.initial_pixel_search
         self.tracking_parameters_dict['invert_threshold'] = self.invert_threshold
         self.tracking_parameters_dict['range_angles'] = self.range_angles
+        self.tracking_parameters_dict['background_calculation_method'] = self.background_calculation_method
+        self.tracking_parameters_dict['background_calculation_frame_chunk_width'] = self.background_calculation_frame_chunk_width
+        self.tracking_parameters_dict['background_calculation_frame_chunk_height'] = self.background_calculation_frame_chunk_height
+        self.tracking_parameters_dict['background_calculation_frames_to_skip'] = self.background_calculation_frames_to_skip
 
         for video_path in self.loaded_videos_and_parameters_dict.keys():
             self.loaded_videos_and_parameters_dict[video_path]['tracking_parameters'] = self.tracking_parameters_dict
@@ -2704,11 +2708,21 @@ class TrackVideoThread(QThread):
         self.initial_pixel_search = None
         self.invert_threshold = None
         self.range_angles = None
+        self.background_calculation_method = None
+        self.background_calculation_frame_chunk_width = None
+        self.background_calculation_frame_chunk_height = None
+        self.background_calculation_frames_to_skip = None
 
     def run(self):
         if self.background_path == 'Background calculated and loaded into memory/Background calculated and loaded into memory':
             self.background_path = None
-        ut.track_video(self.video_path, self.colours, self.n_tail_points, self.dist_tail_points, self.dist_eyes, self.dist_swim_bladder, tracking_method = self.tracking_method, save_video = self.save_video, extended_eyes_calculation = self.extended_eyes_calculation, n_frames = self.n_frames, starting_frame = self.starting_frame, save_path = self.save_path, background_path = self.background_path, line_length = self.line_length, video_fps = self.video_fps, pixel_threshold = self.pixel_threshold, frame_change_threshold = self.frame_change_threshold, eyes_threshold = self.eyes_threshold, initial_pixel_search = self.initial_pixel_search, invert_threshold = self.invert_threshold, range_angles = self.range_angles, convert_colours_from_RGB_to_BGR = True)
+        ut.track_video(self.video_path, self.colours, self.n_tail_points, self.dist_tail_points, self.dist_eyes, self.dist_swim_bladder,
+                        background_calculation_method = self.background_calculation_method, background_calculation_frame_chunk_width = self.background_calculation_frame_chunk_width,
+                        background_calculation_frame_chunk_height = self.background_calculation_frame_chunk_height, background_calculation_frames_to_skip = self.background_calculation_frames_to_skip,
+                        tracking_method = self.tracking_method, save_video = self.save_video, extended_eyes_calculation = self.extended_eyes_calculation, n_frames = self.n_frames,
+                        starting_frame = self.starting_frame, save_path = self.save_path, background_path = self.background_path, line_length = self.line_length,
+                        video_fps = self.video_fps, pixel_threshold = self.pixel_threshold, frame_change_threshold = self.frame_change_threshold, eyes_threshold = self.eyes_threshold,
+                        initial_pixel_search = self.initial_pixel_search, invert_threshold = self.invert_threshold, range_angles = self.range_angles, convert_colours_from_RGB_to_BGR = True)
 
 class TrackAllVideosThread(QThread):
 
@@ -2739,8 +2753,18 @@ class TrackAllVideosThread(QThread):
             initial_pixel_search = tracking_parameters['initial_pixel_search']
             invert_threshold = tracking_parameters['invert_threshold']
             range_angles = tracking_parameters['range_angles']
+            background_calculation_method = tracking_parameters['background_calculation_method']
+            background_calculation_frame_chunk_width = tracking_parameters['background_calculation_frame_chunk_width']
+            background_calculation_frame_chunk_height = tracking_parameters['background_calculation_frame_chunk_height']
+            background_calculation_frames_to_skip = tracking_parameters['background_calculation_frames_to_skip']
             colours = self.loaded_videos_and_parameters_dict[video_path]['colour_parameters']
-            ut.track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes, dist_swim_bladder, tracking_method = tracking_method, save_video = save_video, extended_eyes_calculation = extended_eyes_calculation, n_frames = n_frames, starting_frame = starting_frame, save_path = save_path, background_path = background_path, line_length = line_length, video_fps = video_fps, pixel_threshold = pixel_threshold, frame_change_threshold = frame_change_threshold, eyes_threshold = eyes_threshold, initial_pixel_search = initial_pixel_search, invert_threshold = invert_threshold, range_angles = range_angles, convert_colours_from_RGB_to_BGR = True)
+            ut.track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes, dist_swim_bladder, tracking_method = tracking_method,
+                            background_calculation_method = background_calculation_method, background_calculation_frame_chunk_width = background_calculation_frame_chunk_width,
+                            background_calculation_frame_chunk_height = background_calculation_frame_chunk_height, background_calculation_frames_to_skip = background_calculation_frames_to_skip,
+                            save_video = save_video, extended_eyes_calculation = extended_eyes_calculation, n_frames = n_frames, starting_frame = starting_frame,
+                            save_path = save_path, background_path = background_path, line_length = line_length, video_fps = video_fps, pixel_threshold = pixel_threshold,
+                            frame_change_threshold = frame_change_threshold, eyes_threshold = eyes_threshold, initial_pixel_search = initial_pixel_search,
+                            invert_threshold = invert_threshold, range_angles = range_angles, convert_colours_from_RGB_to_BGR = True)
 
 
 class CalculateBackgroundThread(QThread):
