@@ -198,8 +198,9 @@ class TrackingContent(QMainWindow):
             self.loaded_videos_y_offset = 70
             self.loaded_videos_y_spacing = 10
             self.loaded_videos_x_spacing = 12.5
-            self.loaded_videos_listbox_size = (805, 160)
+            self.loaded_videos_listbox_size = (805, 280)
             self.loaded_videos_button_size = (260, 50)
+            self.loaded_videos_button_2_size = (396.25, 50)
             self.descriptors_window_size = (845, 400)
             self.descriptors_x_offset = 10
             self.descriptors_y_offset = 75
@@ -366,7 +367,7 @@ class TrackingContent(QMainWindow):
         self.colours = []
         self.save_video = False
         self.extended_eyes_calculation = False
-        self.tracking_video_thread = None
+        self.track_video_thread = None
         self.calculate_background_thread = None
         self.previous_preview_frame_window_horizontal_scroll_bar_max = None
         self.previous_preview_frame_window_vertical_scroll_bar_max = None
@@ -386,6 +387,7 @@ class TrackingContent(QMainWindow):
         self.range_angles = None
         self.loaded_videos_and_parameters_dict = {}
         self.tracking_parameters_dict = {}
+        self.track_all_videos_thread = None
 
     # Defining Get Functions
     def get_video_attributes(self):
@@ -478,73 +480,82 @@ class TrackingContent(QMainWindow):
         self.remove_all_videos_button.setFont(self.font_loaded_videos_buttons)
         self.remove_all_videos_button.clicked.connect(self.check_remove_all_videos_button)
 
-        self.add_background_button = QPushButton('Add Background', self)
-        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (0 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
-        new_y = ((self.main_window_y_offset + self.loaded_videos_y_offset + self.loaded_videos_listbox_size[1] + (1 * (self.loaded_videos_y_spacing + self.loaded_videos_button_size[1])) + self.loaded_videos_y_spacing) / 1400) * self.main_window_height
-        self.add_background_button.move(new_x, new_y)
-        self.add_background_button.resize(new_width, new_height)
-        self.add_background_button.setFont(self.font_loaded_videos_buttons)
+        # self.add_background_button = QPushButton('Add Background', self)
+        # new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (0 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
+        # new_y = ((self.main_window_y_offset + self.loaded_videos_y_offset + self.loaded_videos_listbox_size[1] + (1 * (self.loaded_videos_y_spacing + self.loaded_videos_button_size[1])) + self.loaded_videos_y_spacing) / 1400) * self.main_window_height
+        # self.add_background_button.move(new_x, new_y)
+        # self.add_background_button.resize(new_width, new_height)
+        # self.add_background_button.setFont(self.font_loaded_videos_buttons)
         # self.update_background_button.clicked.connect(self.check_update_background_button)
 
-        self.calculate_background_button = QPushButton('Calculate Background', self)
-        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (1 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
-        # new_y = ((self.main_window_y_offset + self.loaded_videos_y_offset + self.loaded_videos_listbox_size[1] + (2 * self.loaded_videos_y_spacing) + self.loaded_videos_button_size[1]) / 1400) * self.main_window_height
-        self.calculate_background_button.move(new_x, new_y)
-        self.calculate_background_button.resize(new_width, new_height)
-        self.calculate_background_button.setFont(self.font_loaded_videos_buttons)
+        # self.calculate_background_button = QPushButton('Calculate Background', self)
+        # new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (1 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
+        # self.calculate_background_button.move(new_x, new_y)
+        # self.calculate_background_button.resize(new_width, new_height)
+        # self.calculate_background_button.setFont(self.font_loaded_videos_buttons)
         # self.calculate_background_button.clicked.connect(self.check_calculate_background_button)
 
-        self.update_background_button = QPushButton('Update Background', self)
-        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (2 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
-        # new_y = ((self.main_window_y_offset + self.loaded_videos_y_offset + self.loaded_videos_listbox_size[1] + (2 * self.loaded_videos_y_spacing) + self.loaded_videos_button_size[1]) / 1400) * self.main_window_height
-        self.update_background_button.move(new_x, new_y)
-        self.update_background_button.resize(new_width, new_height)
-        self.update_background_button.setFont(self.font_loaded_videos_buttons)
+        # self.update_background_button = QPushButton('Update Background', self)
+        # new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (2 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
+        # self.update_background_button.move(new_x, new_y)
+        # self.update_background_button.resize(new_width, new_height)
+        # self.update_background_button.setFont(self.font_loaded_videos_buttons)
         # self.update_background_button.clicked.connect(self.check_update_background_button)
 
-        self.update_tracking_parameters_button = QPushButton('Update Tracking Parameters', self)
-        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (0 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
-        new_y = ((self.main_window_y_offset + self.loaded_videos_y_offset + self.loaded_videos_listbox_size[1] + (2 * (self.loaded_videos_y_spacing + self.loaded_videos_button_size[1])) + self.loaded_videos_y_spacing) / 1400) * self.main_window_height
-        self.update_tracking_parameters_button.move(new_x, new_y)
-        self.update_tracking_parameters_button.resize(new_width, new_height)
-        self.update_tracking_parameters_button.setFont(self.font_loaded_videos_buttons)
+        # self.update_tracking_parameters_button = QPushButton('Update Tracking Parameters', self)
+        # new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (0 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
+        # new_y = ((self.main_window_y_offset + self.loaded_videos_y_offset + self.loaded_videos_listbox_size[1] + (2 * (self.loaded_videos_y_spacing + self.loaded_videos_button_size[1])) + self.loaded_videos_y_spacing) / 1400) * self.main_window_height
+        # self.update_tracking_parameters_button.move(new_x, new_y)
+        # self.update_tracking_parameters_button.resize(new_width, new_height)
+        # self.update_tracking_parameters_button.setFont(self.font_loaded_videos_buttons)
         # self.update_tracking_parameters_button.clicked.connect(self.check_update_background_button)
 
-        self.update_colour_parameters_button = QPushButton('Update Colour Parameters', self)
-        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (1 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
-        self.update_colour_parameters_button.move(new_x, new_y)
-        self.update_colour_parameters_button.resize(new_width, new_height)
-        self.update_colour_parameters_button.setFont(self.font_loaded_videos_buttons)
+        # self.update_colour_parameters_button = QPushButton('Update Colour Parameters', self)
+        # new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (1 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
+        # self.update_colour_parameters_button.move(new_x, new_y)
+        # self.update_colour_parameters_button.resize(new_width, new_height)
+        # self.update_colour_parameters_button.setFont(self.font_loaded_videos_buttons)
         # self.update_colour_parameters_button.clicked.connect(self.check_update_background_button)
 
+        # self.track_selected_video_button = QPushButton('Track Selected Video', self)
+        # new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (2 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
+        # self.track_selected_video_button.move(new_x, new_y)
+        # self.track_selected_video_button.resize(new_width, new_height)
+        # self.track_selected_video_button.setFont(self.font_loaded_videos_buttons)
+        # self.update_colour_parameters_button.clicked.connect(self.check_update_background_button)
+
+        # self.reload_tracking_parameters_button = QPushButton('Reload Tracking Parameters', self)
+        # new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (0 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
+        # new_y = ((self.main_window_y_offset + self.loaded_videos_y_offset + self.loaded_videos_listbox_size[1] + (3 * (self.loaded_videos_y_spacing + self.loaded_videos_button_size[1])) + self.loaded_videos_y_spacing) / 1400) * self.main_window_height
+        # self.reload_tracking_parameters_button.move(new_x, new_y)
+        # self.reload_tracking_parameters_button.resize(new_width, new_height)
+        # self.reload_tracking_parameters_button.setFont(self.font_loaded_videos_buttons)
+        # self.update_tracking_parameters_button.clicked.connect(self.check_update_background_button)
+
+        # self.reload_colour_parameters_button = QPushButton('Reload Colour Parameters', self)
+        # new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (1 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
+        # self.reload_colour_parameters_button.move(new_x, new_y)
+        # self.reload_colour_parameters_button.resize(new_width, new_height)
+        # self.reload_colour_parameters_button.setFont(self.font_loaded_videos_buttons)
+        # self.update_colour_parameters_button.clicked.connect(self.check_update_background_button)
+
+        new_width = (self.loaded_videos_button_2_size[0] / 2560) * self.main_window_width
+        new_height = (self.loaded_videos_button_2_size[1] / 1400) * self.main_window_height
+
         self.track_selected_video_button = QPushButton('Track Selected Video', self)
-        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (2 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
+        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (0 * (self.loaded_videos_button_2_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
+        new_y = ((self.main_window_y_offset + self.loaded_videos_y_offset + self.loaded_videos_listbox_size[1] + (1 * (self.loaded_videos_y_spacing + self.loaded_videos_button_size[1])) + self.loaded_videos_y_spacing) / 1400) * self.main_window_height
         self.track_selected_video_button.move(new_x, new_y)
         self.track_selected_video_button.resize(new_width, new_height)
         self.track_selected_video_button.setFont(self.font_loaded_videos_buttons)
-        # self.update_colour_parameters_button.clicked.connect(self.check_update_background_button)
-
-        self.reload_tracking_parameters_button = QPushButton('Reload Tracking Parameters', self)
-        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (0 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
-        new_y = ((self.main_window_y_offset + self.loaded_videos_y_offset + self.loaded_videos_listbox_size[1] + (3 * (self.loaded_videos_y_spacing + self.loaded_videos_button_size[1])) + self.loaded_videos_y_spacing) / 1400) * self.main_window_height
-        self.reload_tracking_parameters_button.move(new_x, new_y)
-        self.reload_tracking_parameters_button.resize(new_width, new_height)
-        self.reload_tracking_parameters_button.setFont(self.font_loaded_videos_buttons)
-        # self.update_tracking_parameters_button.clicked.connect(self.check_update_background_button)
-
-        self.reload_colour_parameters_button = QPushButton('Reload Colour Parameters', self)
-        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (1 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
-        self.reload_colour_parameters_button.move(new_x, new_y)
-        self.reload_colour_parameters_button.resize(new_width, new_height)
-        self.reload_colour_parameters_button.setFont(self.font_loaded_videos_buttons)
-        # self.update_colour_parameters_button.clicked.connect(self.check_update_background_button)
+        self.track_selected_video_button.clicked.connect(self.check_track_selected_video_button)
 
         self.track_all_videos_button = QPushButton('Track All Videos', self)
-        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (2 * (self.loaded_videos_button_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
+        new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (1 * (self.loaded_videos_button_2_size[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
         self.track_all_videos_button.move(new_x, new_y)
         self.track_all_videos_button.resize(new_width, new_height)
         self.track_all_videos_button.setFont(self.font_loaded_videos_buttons)
-        # self.update_colour_parameters_button.clicked.connect(self.check_update_background_button)
+        self.track_all_videos_button.clicked.connect(self.check_track_all_videos_button)
     def add_descriptors_window(self):
         new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing) / 2560) * self.main_window_width
         new_y = ((self.main_window_y_offset + self.loaded_videos_window_size[1] + self.main_window_spacing) / 1400) * self.main_window_height
@@ -2045,7 +2056,7 @@ class TrackingContent(QMainWindow):
             'initial_pixel_search' : self.initial_pixel_search, 'invert_threshold' : self.invert_threshold}
         np.save('saved_parameters\\tracking_parameters.npy', tracking_parameters)
     def trigger_track_video(self):
-        if self.tracking_video_thread is None:
+        if self.track_video_thread is None:
             self.track_video_thread = TrackVideoThread()
             self.track_video_thread.video_path = self.video_path
             self.track_video_thread.n_tail_points = self.n_tail_points
@@ -2061,7 +2072,7 @@ class TrackingContent(QMainWindow):
             self.track_video_thread.video_fps = self.video_fps
             self.track_video_thread.pixel_threshold = self.pixel_threshold
             self.track_video_thread.frame_change_threshold = self.frame_change_threshold
-            self.track_video_thread.colours = [(self.colours[i][2], self.colours[i][1], self.colours[i][0]) for i in range(len(self.colours))]
+            self.track_video_thread.colours = self.colours
             self.track_video_thread.save_video = self.save_video
             self.track_video_thread.extended_eyes_calculation = self.extended_eyes_calculation
             self.track_video_thread.eyes_threshold = self.eyes_threshold
@@ -2084,7 +2095,7 @@ class TrackingContent(QMainWindow):
             self.track_video_thread.video_fps = self.video_fps
             self.track_video_thread.pixel_threshold = self.pixel_threshold
             self.track_video_thread.frame_change_threshold = self.frame_change_threshold
-            self.track_video_thread.colours = [(self.colours[i][2], self.colours[i][1], self.colours[i][0]) for i in range(len(self.colours))]
+            self.track_video_thread.colours = self.colours
             self.track_video_thread.save_video = self.save_video
             self.track_video_thread.extended_eyes_calculation = self.extended_eyes_calculation
             self.track_video_thread.eyes_threshold = self.eyes_threshold
@@ -2223,6 +2234,38 @@ class TrackingContent(QMainWindow):
                     self.update_video_playback_buttons(activate = True, activate_pause_video_button = True)
                     self.update_frame_change_buttons(activate = True)
                     self.update_interactive_frame_buttons(activate = True)
+    def trigger_track_all_videos(self):
+        self.tracking_parameters_dict['n_tail_points'] = self.n_tail_points
+        self.tracking_parameters_dict['dist_tail_points'] = self.dist_tail_points
+        self.tracking_parameters_dict['dist_eyes'] = self.dist_eyes
+        self.tracking_parameters_dict['dist_swim_bladder'] = self.dist_swim_bladder
+        self.tracking_parameters_dict['tracking_method'] = self.tracking_method
+        self.tracking_parameters_dict['save_video'] = self.save_video
+        self.tracking_parameters_dict['extended_eyes_calculation'] = self.extended_eyes_calculation
+        self.tracking_parameters_dict['n_frames'] = self.n_frames
+        self.tracking_parameters_dict['starting_frame'] = self.starting_frame
+        self.tracking_parameters_dict['save_path'] = self.save_path
+        self.tracking_parameters_dict['background_path'] = self.background_path
+        self.tracking_parameters_dict['line_length'] = self.line_length
+        self.tracking_parameters_dict['video_fps'] = self.video_fps
+        self.tracking_parameters_dict['pixel_threshold'] = self.pixel_threshold
+        self.tracking_parameters_dict['frame_change_threshold'] = self.frame_change_threshold
+        self.tracking_parameters_dict['eyes_threshold'] = self.eyes_threshold
+        self.tracking_parameters_dict['initial_pixel_search'] = self.initial_pixel_search
+        self.tracking_parameters_dict['invert_threshold'] = self.invert_threshold
+        self.tracking_parameters_dict['range_angles'] = self.range_angles
+
+        for video_path in self.loaded_videos_and_parameters_dict.keys():
+            self.loaded_videos_and_parameters_dict[video_path]['tracking_parameters'] = self.tracking_parameters_dict
+            self.loaded_videos_and_parameters_dict[video_path]['colour_parameters'] = self.colours
+        if self.track_all_videos_thread is None:
+            self.track_all_videos_thread = TrackAllVideosThread()
+            self.track_all_videos_thread.loaded_videos_and_parameters_dict = self.loaded_videos_and_parameters_dict
+            self.track_all_videos_thread.start()
+        elif not self.track_all_videos_thread.isRunning():
+            self.track_all_videos_thread = TrackAllVideosThread()
+            self.track_all_videos_thread.loaded_videos_and_parameters_dict = self.loaded_videos_and_parameters_dict
+            self.track_all_videos_thread.start()
 
     # Defining Check Functions
     def check_preview_frame_number_textbox(self):
@@ -2593,6 +2636,15 @@ class TrackingContent(QMainWindow):
             self.range_angles_textbox.setText(str(self.range_angles))
     def check_remove_selected_video_button(self):
         self.trigger_unload_selected_video()
+    def check_track_selected_video_button(self):
+        if self.video_path:
+            self.trigger_track_video()
+    def check_track_all_videos_button(self):
+        if len(self.loaded_videos_and_parameters_dict) > 0:
+            if len(self.loaded_videos_and_parameters_dict) == 1:
+                self.trigger_track_video()
+            else:
+                self.trigger_track_all_videos()
 
     # Defining Event Functions
     def event_preview_frame_window_label_mouse_clicked(self, event):
@@ -2656,7 +2708,40 @@ class TrackVideoThread(QThread):
     def run(self):
         if self.background_path == 'Background calculated and loaded into memory/Background calculated and loaded into memory':
             self.background_path = None
-        ut.track_video(self.video_path, self.colours, self.n_tail_points, self.dist_tail_points, self.dist_eyes, self.dist_swim_bladder, tracking_method = self.tracking_method, save_video = self.save_video, extended_eyes_calculation = self.extended_eyes_calculation, n_frames = self.n_frames, starting_frame = self.starting_frame, save_path = self.save_path, background_path = self.background_path, line_length = self.line_length, video_fps = self.video_fps, pixel_threshold = self.pixel_threshold, frame_change_threshold = self.frame_change_threshold, eyes_threshold = self.eyes_threshold, initial_pixel_search = self.initial_pixel_search, invert_threshold = self.invert_threshold, range_angles = self.range_angles)
+        ut.track_video(self.video_path, self.colours, self.n_tail_points, self.dist_tail_points, self.dist_eyes, self.dist_swim_bladder, tracking_method = self.tracking_method, save_video = self.save_video, extended_eyes_calculation = self.extended_eyes_calculation, n_frames = self.n_frames, starting_frame = self.starting_frame, save_path = self.save_path, background_path = self.background_path, line_length = self.line_length, video_fps = self.video_fps, pixel_threshold = self.pixel_threshold, frame_change_threshold = self.frame_change_threshold, eyes_threshold = self.eyes_threshold, initial_pixel_search = self.initial_pixel_search, invert_threshold = self.invert_threshold, range_angles = self.range_angles, convert_colours_from_RGB_to_BGR = True)
+
+class TrackAllVideosThread(QThread):
+
+    def __init__(self):
+        super(TrackAllVideosThread, self).__init__()
+        self.loaded_videos_and_parameters_dict = None
+
+    def run(self):
+        for video_path in self.loaded_videos_and_parameters_dict.keys():
+            tracking_parameters = self.loaded_videos_and_parameters_dict[video_path]['tracking_parameters']
+            n_tail_points = tracking_parameters['n_tail_points']
+            dist_tail_points = tracking_parameters['dist_tail_points']
+            dist_eyes = tracking_parameters['dist_eyes']
+            dist_swim_bladder = tracking_parameters['dist_swim_bladder']
+            tracking_method = tracking_parameters['tracking_method']
+            save_video = tracking_parameters['save_video']
+            extended_eyes_calculation = tracking_parameters['extended_eyes_calculation']
+            n_frames = tracking_parameters['n_frames']
+            starting_frame = tracking_parameters['starting_frame']
+            save_path = tracking_parameters['save_path']
+            # background_path = tracking_parameters['background_path']
+            background_path = None
+            line_length = tracking_parameters['line_length']
+            video_fps = tracking_parameters['video_fps']
+            pixel_threshold = tracking_parameters['pixel_threshold']
+            frame_change_threshold = tracking_parameters['frame_change_threshold']
+            eyes_threshold = tracking_parameters['eyes_threshold']
+            initial_pixel_search = tracking_parameters['initial_pixel_search']
+            invert_threshold = tracking_parameters['invert_threshold']
+            range_angles = tracking_parameters['range_angles']
+            colours = self.loaded_videos_and_parameters_dict[video_path]['colour_parameters']
+            ut.track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes, dist_swim_bladder, tracking_method = tracking_method, save_video = save_video, extended_eyes_calculation = extended_eyes_calculation, n_frames = n_frames, starting_frame = starting_frame, save_path = save_path, background_path = background_path, line_length = line_length, video_fps = video_fps, pixel_threshold = pixel_threshold, frame_change_threshold = frame_change_threshold, eyes_threshold = eyes_threshold, initial_pixel_search = initial_pixel_search, invert_threshold = invert_threshold, range_angles = range_angles, convert_colours_from_RGB_to_BGR = True)
+
 
 class CalculateBackgroundThread(QThread):
 

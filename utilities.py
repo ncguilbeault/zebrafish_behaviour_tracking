@@ -226,7 +226,6 @@ def calculate_next_coords(init_coords, radius, frame, method = 'brightest', angl
     if not isinstance(method, str) or method not in ['brightest', 'darkest']:
         print('Error: method must be formatted as a string and must be one of the following: brightest or darkest.')
         return
-    range_angles = np.radians(range_angles)
     # Calculate list of angles.
     angles = np.linspace(angle - range_angles / 2, angle + range_angles / 2, n_angles)
     # Calculate list of all potential next coordinates.
@@ -580,6 +579,7 @@ def track_tail_in_frame(frame, background, success, n_tail_points, dist_tail_poi
     body_coords = [np.nan, np.nan]
     heading_angle = np.nan
     tail_point_coords = [[np.nan, np.nan] for m in range(n_tail_points + 1)]
+    range_angles = np.radians(range_angles)
     try:
         if tracking_method == 'free_swimming':
             if success:
@@ -743,7 +743,7 @@ def track_tail_in_frame(frame, background, success, n_tail_points, dist_tail_poi
                             # Calculate the next tail angle as the angle between the last two tail points.
                             tail_angle = np.arctan2(tail_point_coords[m - 1][0] - tail_point_coords[m - 2][0], tail_point_coords[m - 1][1] - tail_point_coords[m - 2][1])
                         # Calculate the next set of tail coordinates.
-                        tail_point_coords[m] = calculate_next_coords(tail_point_coords[m - 1], dist_tail_points, frame, angle = tail_angle)
+                        tail_point_coords[m] = calculate_next_coords(tail_point_coords[m - 1], dist_tail_points, frame, angle = tail_angle, range_angles = range_angles)
                     tracking_results = np.array([np.array(first_eye_coords), np.array(second_eye_coords), first_eye_angle, second_eye_angle, np.array(heading_coords), np.array(body_coords), heading_angle, np.array(tail_point_coords)])
                     # if not np.isnan(np.hstack(tracking_results).any()):
                     return tracking_results
