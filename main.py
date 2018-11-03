@@ -8,6 +8,7 @@ import numpy as np
 import utilities as ut
 import matplotlib.cm as cm
 import time
+import threading
 from functools import partial
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvas, NavigationToolbar2QT as NavigationToolbar
@@ -116,7 +117,13 @@ class MainWindow(QMainWindow):
 
     # Defining Event Functions
     def closeEvent(self, event):
-        event.accept()
+        if self.main_tab.tracking_window.tracking_content.calculate_background_progress_window is not None:
+            if self.main_tab.tracking_window.tracking_content.calculate_background_progress_window.isVisible():
+                self.main_tab.tracking_window.tracking_content.calculate_background_progress_window.close()
+        if self.main_tab.tracking_window.tracking_content.track_video_progress_window is not None:
+            if self.main_tab.tracking_window.tracking_content.track_video_progress_window.isVisible():
+                self.main_tab.tracking_window.tracking_content.track_video_progress_window.close()
+            event.accept()
 
 class MainTab(QTabWidget):
 
@@ -352,6 +359,7 @@ class TrackingContent(QMainWindow):
         self.video_frame_width = 0
         self.video_frame_height = 0
         self.frame_number = 1
+        self.background = None
         self.background_path = None
         self.background_path_basename = None
         self.save_path = None
@@ -366,7 +374,7 @@ class TrackingContent(QMainWindow):
         self.dist_swim_bladder = 0
         self.starting_frame = 0
         self.n_frames = None
-        self.line_length = 0
+        self.heading_line_length = 0
         self.pixel_threshold = 0
         self.frame_change_threshold = 0
         self.eyes_threshold = 0
@@ -395,7 +403,10 @@ class TrackingContent(QMainWindow):
         self.range_angles = None
         self.loaded_videos_and_parameters_dict = {}
         self.tracking_parameters_dict = {}
-        self.track_all_videos_thread = None
+        self.track_all_videos_progress_window = None
+        self.track_video_progress_window = None
+        self.calculate_background_progress_window = None
+        self.save_background = None
 
     # Defining Get Functions
     def get_video_attributes(self):
@@ -556,6 +567,7 @@ class TrackingContent(QMainWindow):
         self.track_selected_video_button.move(new_x, new_y)
         self.track_selected_video_button.resize(new_width, new_height)
         self.track_selected_video_button.setFont(self.font_loaded_videos_buttons)
+        self.track_selected_video_button.setCheckable(True)
         self.track_selected_video_button.clicked.connect(self.check_track_selected_video_button)
 
         self.track_all_videos_button = QPushButton('Track All Videos', self)
@@ -563,7 +575,10 @@ class TrackingContent(QMainWindow):
         self.track_all_videos_button.move(new_x, new_y)
         self.track_all_videos_button.resize(new_width, new_height)
         self.track_all_videos_button.setFont(self.font_loaded_videos_buttons)
+        self.track_all_videos_button.setCheckable(True)
         self.track_all_videos_button.clicked.connect(self.check_track_all_videos_button)
+
+        self.update_loaded_videos_buttons(inactivate = True)
     def add_descriptors_window(self):
         new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing) / 2560) * self.main_window_width
         new_y = ((self.main_window_y_offset + self.loaded_videos_window_size[1] + self.main_window_spacing) / 1400) * self.main_window_height
@@ -1018,7 +1033,7 @@ class TrackingContent(QMainWindow):
         self.tracking_line_length_textbox_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.tracking_line_length_textbox_label.setFont(self.font_text)
         self.tracking_line_length_textbox = QLineEdit(self)
-        self.tracking_line_length_textbox.setText('{0}'.format(self.line_length))
+        self.tracking_line_length_textbox.setText('{0}'.format(self.heading_line_length))
         self.tracking_line_length_textbox.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.tracking_line_length_textbox.setFont(self.font_text)
         self.tracking_line_length_textbox.returnPressed.connect(self.check_tracking_line_length_textbox)
@@ -1614,7 +1629,7 @@ class TrackingContent(QMainWindow):
         if self.tracking_n_frames_textbox.isEnabled():
             self.tracking_n_frames_textbox.setText('{0}'.format(self.n_frames))
         if self.tracking_line_length_textbox.isEnabled():
-            self.tracking_line_length_textbox.setText('{0}'.format(self.line_length))
+            self.tracking_line_length_textbox.setText('{0}'.format(self.heading_line_length))
         if self.tracking_pixel_threshold_textbox.isEnabled():
             self.tracking_pixel_threshold_textbox.setText('{0}'.format(self.pixel_threshold))
         if self.tracking_frame_change_threshold_textbox.isEnabled():
@@ -1780,7 +1795,8 @@ class TrackingContent(QMainWindow):
                     self.colour_label_list[i].setText('Tail Point {0}: '.format(i + 1))
                 self.colour_textbox_list[i].setText('{0}'.format(self.colours[i]))
     def update_background_from_thread(self):
-        self.background = self.calculate_background_thread.background
+        self.background = self.calculate_background_progress_window.background
+        self.background_path = 'Background calculated and loaded into memory/Background calculated and loaded into memory'
         self.get_background_attributes()
         self.update_descriptors()
         self.update_preview_parameters(activate = True)
@@ -1826,6 +1842,41 @@ class TrackingContent(QMainWindow):
             self.video_time_textbox.setText('{0}'.format(round(self.frame_number / self.video_fps, 2)))
         else:
             self.video_time_textbox.setText('{0}'.format(0))
+    def update_loaded_videos_buttons(self, activate = False, inactivate = False):
+        if activate:
+            if not self.remove_selected_video_button.isEnabled():
+                self.remove_selected_video_button.setEnabled(True)
+            if not self.remove_all_videos_button.isEnabled():
+                self.remove_all_videos_button.setEnabled(True)
+            if not self.track_selected_video_button.isEnabled():
+                self.track_selected_video_button.setEnabled(True)
+            if not self.track_all_videos_button.isEnabled():
+                self.track_all_videos_button.setEnabled(True)
+        if inactivate:
+            if self.remove_selected_video_button.isEnabled():
+                self.remove_selected_video_button.setEnabled(False)
+            if self.remove_all_videos_button.isEnabled():
+                self.remove_all_videos_button.setEnabled(False)
+            if self.track_selected_video_button.isEnabled():
+                self.track_selected_video_button.setEnabled(False)
+            if self.track_all_videos_button.isEnabled():
+                self.track_all_videos_button.setEnabled(False)
+        if self.track_selected_video_button.isEnabled():
+            if self.track_video_progress_window is not None:
+                if self.track_video_progress_window.isRunning():
+                    self.track_selected_video_button.setChecked(True)
+                else:
+                    self.track_selected_video_button.setChecked(False)
+            else:
+                self.track_selected_video_button.setChecked(False)
+        if self.track_all_videos_button.isEnabled():
+            if self.track_all_videos_progress_window is not None:
+                if self.track_all_videos_progress_window.isRunning():
+                    self.track_all_videos_button.setChecked(True)
+                else:
+                    self.track_all_videos_button.setChecked(False)
+            else:
+                self.track_all_videos_button.setChecked(False)
 
     # Defining Trigger Functions
     def trigger_save_background(self):
@@ -1842,26 +1893,20 @@ class TrackingContent(QMainWindow):
             self.get_background_attributes()
             self.update_descriptors()
     def trigger_calculate_background(self):
-        if self.calculate_background_thread is None:
-            if self.video_path is not None:
-                self.background_path = 'Background calculated and loaded into memory/Background calculated and loaded into memory'
-                self.calculate_background_thread = CalculateBackgroundThread()
-                self.calculate_background_thread.video_path = self.video_path
-                self.calculate_background_thread.background_calculation_method = self.background_calculation_method
-                self.calculate_background_thread.frame_chunk_size = [self.background_calculation_frame_chunk_width, self.background_calculation_frame_chunk_height]
-                self.calculate_background_thread.frames_to_skip = self.background_calculation_frames_to_skip
-                self.calculate_background_thread.start()
-                self.calculate_background_thread.background_calculated_signal.connect(self.update_background_from_thread)
-        elif not self.calculate_background_thread.isRunning():
-            if self.video_path is not None:
-                self.background_path = 'Background calculated and loaded into memory/Background calculated and loaded into memory'
-                self.calculate_background_thread = CalculateBackgroundThread()
-                self.calculate_background_thread.video_path = self.video_path
-                self.calculate_background_thread.background_calculation_method = self.background_calculation_method
-                self.calculate_background_thread.frame_chunk_size = [self.background_calculation_frame_chunk_width, self.background_calculation_frame_chunk_height]
-                self.calculate_background_thread.frames_to_skip = self.background_calculation_frames_to_skip
-                self.calculate_background_thread.start()
-                self.calculate_background_thread.background_calculated_signal.connect(self.update_background_from_thread)
+        self.calculate_background_progress_window = CalculateBackgroundProgressWindow()
+        self.calculate_background_progress_window.video_path = self.video_path
+        self.calculate_background_progress_window.background_calculation_method = self.background_calculation_method
+        self.calculate_background_progress_window.background_calculation_frame_chunk_width = self.background_calculation_frame_chunk_width
+        self.calculate_background_progress_window.background_calculation_frame_chunk_height = self.background_calculation_frame_chunk_height
+        self.calculate_background_progress_window.background_calculation_frames_to_skip = self.background_calculation_frames_to_skip
+        self.calculate_background_progress_window.save_path = self.save_path
+        self.calculate_background_progress_window.save_background = True
+        self.calculate_background_progress_window.video_n_frames = self.video_n_frames
+        self.calculate_background_progress_window.update_processing_video_label()
+        self.calculate_background_progress_window.update_progress_bar_range()
+        self.calculate_background_progress_window.show()
+        self.calculate_background_progress_window.trigger_calculate_background()
+        self.calculate_background_progress_window.background_calculation_completed_signal.connect(self.update_background_from_thread)
     def trigger_select_save_path(self):
         self.save_path = QFileDialog.getExistingDirectory(self, 'Select save path.')
         if self.save_path:
@@ -1883,6 +1928,7 @@ class TrackingContent(QMainWindow):
     def trigger_open_video(self):
         self.video_path, _ = QFileDialog.getOpenFileName(self,"Open Video File", "","Video Files (*.avi; *.mp4)", options=QFileDialog.Options())
         if self.video_path:
+            self.video_path.replace('/', '\\')
             self.get_video_attributes()
             self.update_descriptors()
             if len(self.loaded_videos_and_parameters_dict) == 0:
@@ -1909,12 +1955,13 @@ class TrackingContent(QMainWindow):
                 self.update_video_playback_buttons(activate = True, activate_pause_video_button = True)
                 self.update_frame_change_buttons(activate = True)
                 self.update_interactive_frame_buttons(activate = True)
+                self.update_loaded_videos_buttons(activate = True)
+                self.update_tracking_parameters(activate = True)
+                self.update_tracking_parameters_buttons(activate = True)
+                self.update_colour_parameters(activate = True)
+                self.update_colour_parameters_buttons(activate = True)
                 if self.background_path:
-                    self.update_tracking_parameters(activate = True)
                     self.update_preview_parameters(activate = True)
-                    self.update_tracking_parameters_buttons(activate = True)
-                    self.update_colour_parameters(activate = True)
-                    self.update_colour_parameters_buttons(activate = True)
     def trigger_update_preview(self, magnify = False, demagnify = False):
         if self.preview_background:
             use_grayscale = True
@@ -1962,14 +2009,14 @@ class TrackingContent(QMainWindow):
                             results = ut.track_tail_in_frame(self.frame, self.background, success, self.n_tail_points, self.dist_tail_points, self.dist_eyes, self.dist_swim_bladder, self.pixel_threshold, self.extended_eyes_calculation, self.eyes_threshold, self.median_blur, self.tracking_method, self.initial_pixel_search, self.invert_threshold, self.range_angles)
                             self.frame = ut.subtract_background_from_frame(self.frame, self.background)
                             if results is not None:
-                                self.frame = ut.annotate_tracking_results_onto_frame(self.frame, results, self.colours, self.line_length, self.extended_eyes_calculation, self.eyes_line_length)
+                                self.frame = ut.annotate_tracking_results_onto_frame(self.frame, results, self.colours, self.heading_line_length, self.extended_eyes_calculation, self.eyes_line_length)
                                 use_grayscale = False
                         else:
                             self.frame = ut.subtract_background_from_frame(self.frame, self.background)
                     elif self.preview_tracking_results:
                         results = ut.track_tail_in_frame(self.frame, self.background, success, self.n_tail_points, self.dist_tail_points, self.dist_eyes, self.dist_swim_bladder, self.pixel_threshold, self.extended_eyes_calculation, self.eyes_threshold, self.median_blur, self.tracking_method, self.initial_pixel_search, self.invert_threshold, self.range_angles)
                         if results is not None:
-                            self.frame = ut.annotate_tracking_results_onto_frame(self.frame, results, self.colours, self.line_length, self.extended_eyes_calculation, self.eyes_line_length)
+                            self.frame = ut.annotate_tracking_results_onto_frame(self.frame, results, self.colours, self.heading_line_length, self.extended_eyes_calculation, self.eyes_line_length)
                             use_grayscale = False
                     if magnify:
                         self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = self.preview_frame_window_label_size[0] + 100, grayscale = use_grayscale)
@@ -1995,7 +2042,7 @@ class TrackingContent(QMainWindow):
         self.dist_swim_bladder = 12
         self.starting_frame = 0
         self.n_frames = None
-        self.line_length = 5
+        self.heading_line_length = 5
         self.pixel_threshold = 40
         self.frame_change_threshold = 10
         self.eyes_threshold = 100
@@ -2015,6 +2062,7 @@ class TrackingContent(QMainWindow):
         self.invert_threshold = False
         # self.invert_threshold_combobox.setCurrentIndex(1)
         self.range_angles = 120
+        self.save_background = True
         self.update_tracking_parameters()
         if self.preview_frame:
             self.trigger_update_preview()
@@ -2029,7 +2077,7 @@ class TrackingContent(QMainWindow):
             self.median_blur = tracking_parameters['median_blur']
             self.starting_frame = tracking_parameters['starting_frame']
             self.n_frames = tracking_parameters['n_frames']
-            self.line_length = tracking_parameters['line_length']
+            self.heading_line_length = tracking_parameters['line_length']
             self.pixel_threshold = tracking_parameters['pixel_threshold']
             self.frame_change_threshold = tracking_parameters['frame_change_threshold']
             self.eyes_threshold = tracking_parameters['eyes_threshold']
@@ -2053,7 +2101,7 @@ class TrackingContent(QMainWindow):
             'dist_tail_points' : self.dist_tail_points, 'dist_eyes' : self.dist_eyes, 'dist_swim_bladder' : self.dist_swim_bladder,
             'median_blur' : self.median_blur,
             'starting_frame' : self.starting_frame,
-            'n_frames' : self.n_frames, 'line_length' : self.line_length,
+            'n_frames' : self.n_frames, 'line_length' : self.heading_line_length,
             'pixel_threshold' : self.pixel_threshold, 'frame_change_threshold' : self.frame_change_threshold,
             'eyes_threshold' : self.eyes_threshold, 'eyes_line_length' : self.eyes_line_length,
             'save_video' : self.save_video, 'extended_eyes_calculation' : self.extended_eyes_calculation,
@@ -2064,56 +2112,41 @@ class TrackingContent(QMainWindow):
             'initial_pixel_search' : self.initial_pixel_search, 'invert_threshold' : self.invert_threshold}
         np.save('saved_parameters\\tracking_parameters.npy', tracking_parameters)
     def trigger_track_video(self):
-        if self.track_video_thread is None:
-            self.track_video_thread = TrackVideoThread()
-            self.track_video_thread.video_path = self.video_path
-            self.track_video_thread.n_tail_points = self.n_tail_points
-            self.track_video_thread.dist_tail_points = self.dist_tail_points
-            self.track_video_thread.dist_eyes = self.dist_eyes
-            self.track_video_thread.dist_swim_bladder = self.dist_swim_bladder
-            self.track_video_thread.tracking_method = self.tracking_method
-            self.track_video_thread.n_frames = self.n_frames
-            self.track_video_thread.starting_frame = self.starting_frame
-            self.track_video_thread.save_path = self.save_path
-            self.track_video_thread.background_path = self.background_path
-            self.track_video_thread.line_length = self.line_length
-            self.track_video_thread.video_fps = self.video_fps
-            self.track_video_thread.pixel_threshold = self.pixel_threshold
-            self.track_video_thread.frame_change_threshold = self.frame_change_threshold
-            self.track_video_thread.colours = self.colours
-            self.track_video_thread.save_video = self.save_video
-            self.track_video_thread.extended_eyes_calculation = self.extended_eyes_calculation
-            self.track_video_thread.eyes_threshold = self.eyes_threshold
-            self.track_video_thread.initial_pixel_search = self.initial_pixel_search
-            self.track_video_thread.range_angles = self.range_angles
-            self.track_video_thread.background_calculation_method = self.background_calculation_method
-            self.track_video_thread.background_calculation_frame_chunk_width = self.background_calculation_frame_chunk_width
-            self.track_video_thread.background_calculation_frame_chunk_height = self.background_calculation_frame_chunk_height
-            self.track_video_thread.background_calculation_frames_to_skip = self.background_calculation_frames_to_skip
-            self.track_video_thread.start()
-        elif not self.track_video_thread.isRunning():
-            self.track_video_thread = TrackVideoThread()
-            self.track_video_thread.video_path = self.video_path
-            self.track_video_thread.n_tail_points = self.n_tail_points
-            self.track_video_thread.dist_tail_points = self.dist_tail_points
-            self.track_video_thread.dist_eyes = self.dist_eyes
-            self.track_video_thread.dist_swim_bladder = self.dist_swim_bladder
-            self.track_video_thread.tracking_method = self.tracking_method
-            self.track_video_thread.n_frames = self.n_frames
-            self.track_video_thread.starting_frame = self.starting_frame
-            self.track_video_thread.save_path = self.save_path
-            self.track_video_thread.background_path = self.background_path
-            self.track_video_thread.line_length = self.line_length
-            self.track_video_thread.video_fps = self.video_fps
-            self.track_video_thread.pixel_threshold = self.pixel_threshold
-            self.track_video_thread.frame_change_threshold = self.frame_change_threshold
-            self.track_video_thread.colours = self.colours
-            self.track_video_thread.save_video = self.save_video
-            self.track_video_thread.extended_eyes_calculation = self.extended_eyes_calculation
-            self.track_video_thread.eyes_threshold = self.eyes_threshold
-            self.track_video_thread.initial_pixel_search = self.initial_pixel_search
-            self.track_video_thread.range_angles = self.range_angles
-            self.track_video_thread.start()
+        self.track_video_progress_window = TrackVideoProgressWindow()
+        self.track_video_progress_window.video_path = self.video_path
+        self.track_video_progress_window.median_blur = self.median_blur
+        self.track_video_progress_window.n_tail_points = self.n_tail_points
+        self.track_video_progress_window.dist_tail_points = self.dist_tail_points
+        self.track_video_progress_window.dist_eyes = self.dist_eyes
+        self.track_video_progress_window.dist_swim_bladder = self.dist_swim_bladder
+        self.track_video_progress_window.save_background = self.save_background
+        self.track_video_progress_window.tracking_method = self.tracking_method
+        self.track_video_progress_window.n_frames = self.n_frames
+        self.track_video_progress_window.starting_frame = self.starting_frame
+        self.track_video_progress_window.save_path = self.save_path
+        self.track_video_progress_window.background_path = self.background_path
+        self.track_video_progress_window.background = self.background
+        self.track_video_progress_window.line_length = self.heading_line_length
+        self.track_video_progress_window.video_fps = self.video_fps
+        self.track_video_progress_window.pixel_threshold = self.pixel_threshold
+        self.track_video_progress_window.frame_change_threshold = self.frame_change_threshold
+        self.track_video_progress_window.colours = self.colours
+        self.track_video_progress_window.save_video = self.save_video
+        self.track_video_progress_window.extended_eyes_calculation = self.extended_eyes_calculation
+        self.track_video_progress_window.eyes_threshold = self.eyes_threshold
+        self.track_video_progress_window.eyes_line_length = self.eyes_line_length
+        self.track_video_progress_window.initial_pixel_search = self.initial_pixel_search
+        self.track_video_progress_window.range_angles = self.range_angles
+        self.track_video_progress_window.background_calculation_method = self.background_calculation_method
+        self.track_video_progress_window.background_calculation_frame_chunk_width = self.background_calculation_frame_chunk_width
+        self.track_video_progress_window.background_calculation_frame_chunk_height = self.background_calculation_frame_chunk_height
+        self.track_video_progress_window.background_calculation_frames_to_skip = self.background_calculation_frames_to_skip
+        self.track_video_progress_window.video_n_frames = self.video_n_frames
+        self.track_video_progress_window.update_processing_video_label()
+        self.track_video_progress_window.update_progress_bar_range()
+        self.track_video_progress_window.update_total_tracking_progress_bar_range()
+        self.track_video_progress_window.show()
+        self.track_video_progress_window.trigger_track_video()
     def trigger_unload_all_tracking(self):
         if self.preview_background_checkbox.isChecked():
             self.preview_background_checkbox.setChecked(False)
@@ -2258,7 +2291,7 @@ class TrackingContent(QMainWindow):
         self.tracking_parameters_dict['starting_frame'] = self.starting_frame
         self.tracking_parameters_dict['save_path'] = self.save_path
         self.tracking_parameters_dict['background_path'] = self.background_path
-        self.tracking_parameters_dict['line_length'] = self.line_length
+        self.tracking_parameters_dict['line_length'] = self.heading_line_length
         self.tracking_parameters_dict['video_fps'] = self.video_fps
         self.tracking_parameters_dict['pixel_threshold'] = self.pixel_threshold
         self.tracking_parameters_dict['frame_change_threshold'] = self.frame_change_threshold
@@ -2396,11 +2429,11 @@ class TrackingContent(QMainWindow):
             self.tracking_n_frames_textbox.setText(str(self.n_frames))
     def check_tracking_line_length_textbox(self):
         if self.tracking_line_length_textbox.text().isdigit():
-            self.line_length = int(self.tracking_line_length_textbox.text())
+            self.heading_line_length = int(self.tracking_line_length_textbox.text())
             if self.preview_tracking_results:
                 self.trigger_update_preview()
         else:
-            self.tracking_line_length_textbox.setText(str(self.line_length))
+            self.tracking_line_length_textbox.setText(str(self.heading_line_length))
     def check_tracking_pixel_threshold_textbox(self):
         if self.tracking_pixel_threshold_textbox.text().isdigit():
             self.pixel_threshold = int(self.tracking_pixel_threshold_textbox.text())
@@ -2653,8 +2686,10 @@ class TrackingContent(QMainWindow):
     def check_remove_selected_video_button(self):
         self.trigger_unload_selected_video()
     def check_track_selected_video_button(self):
-        if self.video_path:
-            self.trigger_track_video()
+        if self.track_video_progress_window is None:
+            if not self.track_video_progress_window.isRunning():
+                if self.video_path:
+                    self.trigger_track_video()
     def check_track_all_videos_button(self):
         if len(self.loaded_videos_and_parameters_dict) > 0:
             if len(self.loaded_videos_and_parameters_dict) == 1:
@@ -2695,46 +2730,852 @@ class TrackingContent(QMainWindow):
     def event_preview_frame_window_wheel_scrolled(self, event):
         event.ignore()
 
-class TrackVideoThread(QThread):
+class TrackVideoProgressWindow(QMainWindow):
 
+    # Defining Initialization Functions
     def __init__(self):
-        super(TrackVideoThread, self).__init__()
+        super(TrackVideoProgressWindow, self).__init__()
+        self.initUI()
+
+    def initUI(self):
+        self.initialize_class_variables()
+        self.add_processing_video_label()
+        self.add_current_status_label()
+        self.add_current_tracking_progress_bar()
+        self.add_total_progress_label()
+        self.add_total_tracking_progress_bar()
+        self.add_total_time_elapsed_label()
+        self.add_cancel_tracking_button()
+        self.setWindowTitle('Video Tracking in Progress')
+        self.setFixedSize(500, 270)
+
+    def initialize_class_variables(self):
         self.video_path = None
+        self.background = None
         self.colours = None
-        self.n_tail_points = None
-        self.dist_tail_points = None
-        self.dist_eyes = None
-        self.dist_swim_bladder = None
-        self.tracking_method = None
-        self.n_frames = None
-        self.starting_frame = None
-        self.save_path = None
-        self.background_path = None
-        self.line_length = None
-        self.video_fps = None
-        self.pixel_threshold = None
-        self.frame_change_threshold = None
-        self.save_video = None
-        self.extended_eyes_calculation = None
-        self.eyes_threshold = None
-        self.initial_pixel_search = None
-        self.invert_threshold = None
-        self.range_angles = None
         self.background_calculation_method = None
         self.background_calculation_frame_chunk_width = None
         self.background_calculation_frame_chunk_height = None
         self.background_calculation_frames_to_skip = None
+        self.save_background = None
+        self.tracking_method = None
+        self.initial_pixel_search = None
+        self.n_tail_points = None
+        self.dist_tail_points = None
+        self.dist_eyes = None
+        self.dist_swim_bladder = None
+        self.range_angles = None
+        self.median_blur = None
+        self.pixel_threshold = None
+        self.frame_change_threshold = None
+        self.heading_line_length = None
+        self.extended_eyes_calculation = None
+        self.eyes_threshold = None
+        self.invert_threshold = None
+        self.save_video = None
+        self.starting_frame = None
+        self.n_frames = None
+        self.save_path = None
+        self.video_fps = None
+        self.track_video_thread = None
+
+        self.video_n_frames = None
+
+    def add_processing_video_label(self):
+        self.processing_video_label = QLabel(self)
+        self.processing_video_label.move(40, 10)
+        self.processing_video_label.resize(400, 20)
+
+    def add_current_status_label(self):
+        self.current_status_label = QLabel(self)
+        self.current_status_label.move(40, 40)
+        self.current_status_label.resize(400, 20)
+
+    def add_current_tracking_progress_bar(self):
+        self.current_tracking_progress_bar = QProgressBar(self)
+        self.current_tracking_progress_bar.move(50, 70)
+        self.current_tracking_progress_bar.resize(400, 30)
+        self.current_tracking_progress_bar.setMinimum(0)
+
+    def add_total_progress_label(self):
+        self.total_progress_label = QLabel(self)
+        self.total_progress_label.move(40, 110)
+        self.total_progress_label.resize(400, 20)
+        self.total_progress_label.setText('Total Progress: ')
+
+    def add_total_tracking_progress_bar(self):
+        self.total_tracking_progress_bar = QProgressBar(self)
+        self.total_tracking_progress_bar.move(50, 140)
+        self.total_tracking_progress_bar.resize(400, 30)
+
+    def add_total_time_elapsed_label(self):
+        self.total_time_elapsed_label = QLabel(self)
+        self.total_time_elapsed_label.move(40, 180)
+        self.total_time_elapsed_label.resize(400, 20)
+
+    def add_cancel_tracking_button(self):
+        self.cancel_tracking_button = QPushButton('Cancel', self)
+        self.cancel_tracking_button.move(150, 210)
+        self.cancel_tracking_button.resize(200, 50)
+        self.cancel_tracking_button.clicked.connect(self.close)
+
+    def update_processing_video_label(self):
+        self.processing_video_label.setText('Processing Video: {0}'.format(self.video_path))
+
+    def update_progress_bar_range(self):
+        if self.n_frames is None:
+            self.current_tracking_progress_bar.setMaximum(self.video_n_frames)
+        else:
+            # if self.n_frames + self.starting_frame < self.video_n_frames:
+            self.current_tracking_progress_bar.setMaximum(self.n_frames)
+
+    def update_progress_bar_value(self, value, current_status):
+        self.current_tracking_progress_bar.setValue(value)
+
+    def update_current_status_label(self, value):
+        self.current_status_label.setText('Current Status: {0}'.format(value))
+
+    def update_total_time_elapsed_label(self, value):
+        elapsed_time = int(round(value, 0))
+        if elapsed_time == 1:
+            self.total_time_elapsed_label.setText('Total Time Elapsed: {0} second'.format(elapsed_time))
+        else:
+            self.total_time_elapsed_label.setText('Total Time Elapsed: {0} seconds'.format(elapsed_time))
+
+    def update_total_tracking_progress_bar_range(self):
+        if self.background is None and self.background_calculation_method == 'mode':
+            self.total_tracking_progress_bar.setMaximum(self.video_n_frames * 5)
+        elif self.background is None:
+            self.total_tracking_progress_bar.setMaximum(self.video_n_frames * 10)
+        else:
+            self.total_tracking_progress_bar.setMaximum(self.video_n_frames)
+
+    def update_total_tracking_progress_bar_value(self, value, current_status):
+        if current_status == 'Calculating Background':
+            self.total_tracking_progress_bar.setValue(value)
+        elif self.background is None and self.background_calculation_method == 'mode':
+            self.total_tracking_progress_bar.setValue(self.video_n_frames + (value * 4))
+        elif self.background is None:
+            self.total_tracking_progress_bar.setValue(self.video_n_frames + (value * 9))
+        else:
+            self.total_tracking_progress_bar.setValue(value)
+
+    def trigger_track_video(self):
+        self.track_video_thread = TrackVideoThread()
+        self.track_video_thread.video_path = self.video_path
+        self.track_video_thread.background = self.background
+        self.track_video_thread.colours = self.colours
+        self.track_video_thread.background_calculation_method = self.background_calculation_method
+        self.track_video_thread.background_calculation_frame_chunk_width = self.background_calculation_frame_chunk_width
+        self.track_video_thread.background_calculation_frame_chunk_height = self.background_calculation_frame_chunk_height
+        self.track_video_thread.background_calculation_frames_to_skip = self.background_calculation_frames_to_skip
+        self.track_video_thread.save_background = self.save_background
+        self.track_video_thread.tracking_method = self.tracking_method
+        self.track_video_thread.initial_pixel_search = self.initial_pixel_search
+        self.track_video_thread.n_tail_points = self.n_tail_points
+        self.track_video_thread.dist_tail_points = self.dist_tail_points
+        self.track_video_thread.dist_eyes = self.dist_eyes
+        self.track_video_thread.dist_swim_bladder = self.dist_swim_bladder
+        self.track_video_thread.range_angles = self.range_angles
+        self.track_video_thread.median_blur = self.median_blur
+        self.track_video_thread.pixel_threshold = self.pixel_threshold
+        self.track_video_thread.frame_change_threshold = self.frame_change_threshold
+        self.track_video_thread.heading_line_length = self.heading_line_length
+        self.track_video_thread.extended_eyes_calculation = self.extended_eyes_calculation
+        self.track_video_thread.eyes_threshold = self.eyes_threshold
+        self.track_video_thread.invert_threshold = self.invert_threshold
+        self.track_video_thread.save_video = self.save_video
+        self.track_video_thread.starting_frame = self.starting_frame
+        self.track_video_thread.n_frames = self.n_frames
+        self.track_video_thread.save_path = self.save_path
+        self.track_video_thread.video_fps = self.video_fps
+        self.track_video_thread.start()
+        self.track_video_thread.progress_signal.connect(self.update_progress_bar_value)
+        self.track_video_thread.progress_signal.connect(self.update_total_tracking_progress_bar_value)
+        self.track_video_thread.current_status_signal.connect(self.update_current_status_label)
+        self.track_video_thread.total_time_elapsed_signal.connect(self.update_total_time_elapsed_label)
+        self.track_video_thread.background_calculation_finished_signal.connect(self.trigger_reset_progress_bar)
+        self.track_video_thread.tracking_finished_signal.connect(self.close)
+
+    def trigger_reset_progress_bar(self):
+        self.current_tracking_progress_bar.reset()
+
+    def closeEvent(self, event):
+        if self.track_video_thread is not None:
+            if self.track_video_thread.isRunning():
+                self.track_video_thread.terminate()
+        event.accept()
+
+class TrackVideoThread(QThread):
+
+    background_calculation_finished_signal = pyqtSignal(bool)
+    tracking_finished_signal = pyqtSignal(bool)
+    progress_signal = pyqtSignal(float, str)
+    current_status_signal = pyqtSignal(str)
+    total_time_elapsed_signal = pyqtSignal(float)
+
+    def __init__(self):
+        super(TrackVideoThread, self).__init__()
+        self.initialize_class_variables()
+
+    def initialize_class_variables(self):
+        self.video_path = None
+        self.background = None
+        self.colours = None
+        self.background_calculation_method = None
+        self.background_calculation_frame_chunk_width = None
+        self.background_calculation_frame_chunk_height = None
+        self.background_calculation_frames_to_skip = None
+        self.save_background = None
+        self.tracking_method = None
+        self.initial_pixel_search = None
+        self.n_tail_points = None
+        self.dist_tail_points = None
+        self.dist_eyes = None
+        self.dist_swim_bladder = None
+        self.range_angles = None
+        self.median_blur = None
+        self.pixel_threshold = None
+        self.frame_change_threshold = None
+        self.heading_line_length = None
+        self.extended_eyes_calculation = None
+        self.eyes_threshold = None
+        self.invert_threshold = None
+        self.save_video = None
+        self.starting_frame = None
+        self.n_frames = None
+        self.save_path = None
+        self.video_fps = None
+
+        self.periods = None
+        self.start_time = None
+        self.total_time_elapsed = None
+        self.current_status = None
+
+        self.timer_thread = None
+
+    def update_current_status(self, value):
+        if self.current_status is not None:
+            if self.periods is None:
+                self.periods = '.'
+            elif len(self.periods) == 6:
+                self.periods = '.'
+            else:
+                self.periods += '.'
+            self.current_status_signal.emit(self.current_status + self.periods)
+        if self.start_time is None:
+            self.start_time = value
+            self.total_time_elapsed = self.start_time
+        else:
+            self.total_time_elapsed = value - self.start_time
+        self.total_time_elapsed_signal.emit(self.total_time_elapsed)
 
     def run(self):
-        if self.background_path == 'Background calculated and loaded into memory/Background calculated and loaded into memory':
-            self.background_path = None
-        ut.track_video(self.video_path, self.colours, self.n_tail_points, self.dist_tail_points, self.dist_eyes, self.dist_swim_bladder,
-                        background_calculation_method = self.background_calculation_method, background_calculation_frame_chunk_width = self.background_calculation_frame_chunk_width,
-                        background_calculation_frame_chunk_height = self.background_calculation_frame_chunk_height, background_calculation_frames_to_skip = self.background_calculation_frames_to_skip,
-                        tracking_method = self.tracking_method, save_video = self.save_video, extended_eyes_calculation = self.extended_eyes_calculation, n_frames = self.n_frames,
-                        starting_frame = self.starting_frame, save_path = self.save_path, background_path = self.background_path, line_length = self.line_length,
-                        video_fps = self.video_fps, pixel_threshold = self.pixel_threshold, frame_change_threshold = self.frame_change_threshold, eyes_threshold = self.eyes_threshold,
-                        initial_pixel_search = self.initial_pixel_search, invert_threshold = self.invert_threshold, range_angles = self.range_angles, convert_colours_from_RGB_to_BGR = True)
+        self.timer_thread = TimerThread()
+        self.timer_thread.start()
+        self.timer_thread.time_signal.connect(self.update_current_status)
+        if self.background is None:
+            self.background = self.calculate_background(self.video_path, self.background_calculation_method, [self.background_calculation_frame_chunk_width, self.background_calculation_frame_chunk_height],
+                            self.background_calculation_frames_to_skip, self.save_path, self.save_background)
+
+        self.track_video(self.video_path, self.background, self.colours, self.tracking_method, self.initial_pixel_search, self.n_tail_points, self.dist_tail_points, self.dist_eyes,
+                        self.dist_swim_bladder, self.range_angles, self.median_blur, self.pixel_threshold, self.frame_change_threshold, self.heading_line_length, self.extended_eyes_calculation, self.eyes_threshold,
+                        self.invert_threshold, self.save_video, self.starting_frame, self.n_frames, self.save_path, self.video_fps)
+
+    def calculate_background(self, video_path, method, chunk_size, frames_to_skip, save_path, save_background):
+        # Check arguments.
+        if not isinstance(video_path, str):
+            print('Error: video_path must be formatted as a string.')
+            return
+        if not isinstance(method, str) or method not in ['brightest', 'darkest', 'mode']:
+            print('Error: method must be formatted as a string and must be one of the following: brightest, darkest, or mode.')
+            return
+        if not isinstance(save_background, bool):
+            print('Error: save_background must be formatted as a boolean (True/False).')
+            return
+        if not isinstance(chunk_size, list):
+            print('Error: chunk_size must be formatted as a list containing 2 integer values.')
+            return
+        if len(chunk_size) != 2:
+            print('Error: chunk_size must be formatted as a list containing 2 integer values.')
+            return
+        if not isinstance(chunk_size[0], int) or not isinstance(chunk_size[1], int):
+            print('Error: chunk_size must be formatted as a list containing 2 integer values.')
+            return
+        if not isinstance(frames_to_skip, int):
+            print('Error: frames_to_skip must be formatted as an integer.')
+            return
+
+        self.current_status = 'Calculating Background'
+
+        frame_size = ut.get_frame_size_from_video(video_path)
+        video_n_frames = ut.get_total_frame_number_from_video(video_path)
+
+        try:
+            # Load the video.
+            capture = cv2.VideoCapture(video_path)
+            # Retrieve total number of frames in video.
+            frames_to_skip += 1
+
+            if method == 'mode':
+                background = np.zeros(frame_size)
+                pix = []
+                width_iterations = int(frame_size[0]/chunk_size[0])
+                if frame_size[0] % chunk_size[0] != 0:
+                    width_iterations += 1
+                height_iterations = int(frame_size[1] / chunk_size[1])
+                if frame_size[1] % chunk_size[1] != 0:
+                    height_iterations += 1
+                for i in range(height_iterations):
+                    for j in range(width_iterations):
+                        for frame_num in range(video_n_frames):
+                            self.progress_signal.emit((frame_num + 1 + (j * video_n_frames) + (video_n_frames * width_iterations * i)) / (width_iterations * height_iterations * video_n_frames) * video_n_frames, self.current_status)
+                            success, frame = capture.read()
+                            if success:
+                                if frame_num % frames_to_skip == 0:
+                                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                                    if i == height_iterations - 1 and j == width_iterations - 1:
+                                        pix.append(frame[i * chunk_size[1] : , j * chunk_size[0] : ])
+                                    elif i == height_iterations - 1:
+                                        pix.append(frame[i * chunk_size[1] : , j * chunk_size[0] : j * chunk_size[0] + chunk_size[0]])
+                                    elif j == width_iterations - 1:
+                                        pix.append(frame[i * chunk_size[1] : i * chunk_size[1] + chunk_size[1], j * chunk_size[0] : ])
+                                    else:
+                                        pix.append(frame[i * chunk_size[1] : i * chunk_size[1] + chunk_size[1], j * chunk_size[0] : j * chunk_size[0] + chunk_size[0]])
+                        bg_pix = stats.mode(pix)[0]
+                        if i == height_iterations - 1 and j == width_iterations - 1:
+                            background[i * chunk_size[1] : , j * chunk_size[0] : ] = bg_pix
+                        elif i == height_iterations - 1:
+                            background[i * chunk_size[1] : , j * chunk_size[0] : j * chunk_size[0] + chunk_size[0]] = bg_pix
+                        elif j == width_iterations - 1:
+                            background[i * chunk_size[1] : i * chunk_size[1] + chunk_size[1], j * chunk_size[0] : ] = bg_pix
+                        else:
+                            background[i * chunk_size[1] : i * chunk_size[1] + chunk_size[1], j * chunk_size[0] : j * chunk_size[0] + chunk_size[0]] = bg_pix
+                        pix = []
+                        capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                background = background.astype(np.uint8)
+                if save_background:
+                    if save_path != None:
+                        background_path = '{0}\\{1}_background.tif'.format(save_path, os.path.basename(video_path)[:-4])
+                    else:
+                        background_path = '{0}_background.tif'.format(video_path[:-4])
+                    cv2.imwrite(background_path, background)
+            else:
+                # Iterate through each frame in the video.
+                for frame_num in range(video_n_frames):
+                    self.progress_signal.emit(frame_num + 1, self.current_status)
+                    # Load frame into memory.
+                    success, frame = capture.read()
+                    # Check if frame was loaded successfully.
+                    if success:
+                        if frame_num % frames_to_skip == 0:
+                            # Convert frame to grayscale.
+                            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                            # Copy frame into background if this is the first frame.
+                            if frame_num == 0:
+                                background = frame.copy().astype(np.float32)
+                            elif method == 'brightest':
+                                # Create a mask where the background is compared to the frame in the loop and used to update the background where the frame is.
+                                mask = np.less(background, frame)
+                                # Update the background image where all of the pixels in the new frame are brighter than the background image.
+                                background[mask] = frame[mask]
+                            elif method == 'darkest':
+                                # Create a mask where the background is compared to the frame in the loop and used to update the background where the frame is.
+                                mask = np.greater(background, frame)
+                                # Update the background image where all of the pixels in the new frame are darker than the background image.
+                                background[mask] = frame[mask]
+                background = background.astype(np.uint8)
+                # Save the background into an external file if requested.
+                if save_background:
+                    if save_path != None:
+                        background_path = '{0}\\{1}_background.tif'.format(save_path, os.path.basename(video_path)[:-4])
+                    else:
+                        background_path = '{0}_background.tif'.format(video_path[:-4])
+                    cv2.imwrite(background_path, background)
+        except:
+            # Errors that may occur during the background calculation are handled.
+            print('Error calculating background')
+            if capture.isOpened():
+                capture.release()
+            return None
+        if capture.isOpened():
+            # Unload video from memory.
+            capture.release()
+        # Return the calculated background.
+        time.sleep(0.5)
+        return background
+
+    def track_video(self, video_path, background, colours, tracking_method, initial_pixel_search, n_tail_points, dist_tail_points, dist_eyes,
+                    dist_swim_bladder, range_angles, median_blur, pixel_threshold, frame_change_threshold, heading_line_length, extended_eyes_calculation, eyes_threshold,
+                    invert_threshold, save_video, starting_frame, n_frames, save_path, video_fps):
+
+        self.current_status = 'Tracking Video'
+        colours = [[colours[i][2], colours[i][1], colours[i][0]] for i in range(len(colours))]
+
+        if heading_line_length == 0:
+            heading_line_length = dist_eyes
+
+        if extended_eyes_calculation and eyes_line_length == 0:
+            eyes_line_length = heading_line_length
+
+        if save_path == None:
+            save_path = os.path.dirname(video_path)
+
+        # print(len(background), len(background[0]), len(frame), len(frame[0]))
+        video_n_frames = ut.get_total_frame_number_from_video(video_path)
+        frame_size = ut.get_frame_size_from_video(video_path)
+
+        # Get the fps.
+        if video_fps is None:
+            video_fps = get_fps_from_video(video_path)
+
+        # Get the total number of frames.
+        if n_frames is None:
+            n_frames = video_n_frames
+
+        if n_frames > video_n_frames:
+            print('The number of frames requested to track exceeds the total number of frames in the video.')
+            n_frames = video_n_frames
+
+        if starting_frame >= video_n_frames:
+            print('Starting frame number provided exceeds the total number of frames in the video. Setting the starting frame number to 0.')
+            starting_frame = 0
+            n_frames = video_n_frames
+
+        if starting_frame + n_frames > video_n_frames:
+            print('The number of frames requested to track plus the number of initial frames to offset exceeds the total number of frames in the video. Keeping the initial frames to offset and tracking the remaining frames.')
+            n_frames = video_n_frames - starting_frame
+
+        # Open the video path.
+        capture = cv2.VideoCapture(video_path)
+
+        # Set the frame position to start.
+        capture.set(cv2.CAP_PROP_POS_FRAMES, starting_frame)
+
+        if save_video:
+            # Create a path for the video once it is tracked.
+            save_video_path = "{0}\\{1}_tracked.avi".format(save_path, os.path.basename(video_path)[:-4])
+
+            # Create video writer.
+            writer = cv2.VideoWriter(save_video_path, 0, video_fps, frame_size)
+
+        # Initialize variables for data.
+        eye_coord_array = []
+        eye_angle_array = []
+        tail_coord_array = []
+        body_coord_array = []
+        heading_angle_array = []
+        prev_frame = None
+        prev_eye_angle = None
+
+        range_angles = np.radians(range_angles)
+
+        if tracking_method == 'free_swimming':
+            # Iterate through each frame.
+            for n in range(n_frames):
+                self.progress_signal.emit(n + 1, self.current_status)
+                # Load a frame into memory.
+                success, original_frame = capture.read()
+                # Checks if the frame was loaded successfully.
+                if success:
+                    # Initialize variables for each frame.
+                    first_eye_coords = [np.nan, np.nan]
+                    second_eye_coords = [np.nan, np.nan]
+                    first_eye_angle = np.nan
+                    second_eye_angle = np.nan
+                    body_coords = [np.nan, np.nan]
+                    heading_angle = np.nan
+                    swim_bladder_coords = [np.nan, np.nan]
+                    tail_point_coords = [[np.nan, np.nan] for m in range(n_tail_points)]
+                    tail_points = [[np.nan, np.nan] for m in range(n_tail_points + 1)]
+                    # Convert the original frame to grayscale.
+                    frame = cv2.cvtColor(original_frame, cv2.COLOR_BGR2GRAY).astype(np.uint8)
+                    # Convert the frame into the absolute difference between the frame and the background.
+                    frame = cv2.absdiff(frame, background)
+                    # Apply a median blur filter to the frame.
+                    frame = cv2.medianBlur(frame, median_blur)
+                    try:
+                        # Check to ensure that the maximum pixel value is greater than a certain value. Useful for determining whether or not the at least one of the eyes is present in the frame.
+                        if np.max(frame) > pixel_threshold:
+                            # Check to see if it's not the first frame and check if the sum of the absolute difference between the current frame and the previous frame is greater than a certain threshold. This helps reduce frame to frame noise in the position of the pixels.
+                            if prev_frame is not None and np.sum(np.abs(frame.astype(float) - prev_frame.astype(float)) >= frame_change_threshold) == 0:
+                                # If the difference between the current frame and the previous frame is less than a certain threshold, then use the values that were previously calculated.
+                                first_eye_coords, second_eye_coords = eye_coord_array[len(eye_coord_array) - 1]
+                                first_eye_angle, second_eye_angle = eye_angle_array[len(eye_angle_array) - 1]
+                                body_coords = body_coord_array[len(body_coord_array) - 1]
+                                heading_angle = heading_angle_array[len(heading_angle_array) - 1]
+                                swim_bladder_coords = tail_coord_array[len(tail_coord_array) - 1][0]
+                                tail_point_coords = tail_coord_array[len(tail_coord_array) - 1][1:]
+                            else:
+                                # Return the coordinate of the brightest pixel.
+                                first_eye_coords = [np.where(frame == np.max(frame))[0][0], np.where(frame == np.max(frame))[1][0]]
+                                # Calculate the next brightest pixel that lies on the circle drawn around the first eye coordinates and has a radius equal to the distance between the eyes.
+                                second_eye_coords = ut.calculate_next_coords(first_eye_coords, dist_eyes, frame, n_angles = 100, range_angles = 2 * np.pi, tail_calculation = False)
+                                # Check whether to to an additional process to calculate eye angles.
+                                if extended_eyes_calculation:
+                                    # Calculate the angle between the two eyes.
+                                    eye_angle = np.arctan2(second_eye_coords[0] - first_eye_coords[0], second_eye_coords[1] - first_eye_coords[1])
+                                    # Check if this is the first frame.
+                                    if prev_eye_angle is not None:
+                                        # Check if the difference between the current eye angle and previous eye angle is somwehere around pi, meaning the first and second eye coordiantes have reversed. Occasionally, the coordinates of the eyes will switch between one and the other. This method is useful for keeping the positions of the left and right eye the same between frames.
+                                        if eye_angle - prev_eye_angle > np.pi / 2 or eye_angle - prev_eye_angle < -np.pi / 2:
+                                            if eye_angle - prev_eye_angle < np.pi * 3 / 2 and eye_angle - prev_eye_angle > -np.pi * 3 / 2:
+                                                # Switch the first and second eye coordinates.
+                                                coords = first_eye_coords
+                                                first_eye_coords = second_eye_coords
+                                                second_eye_coords = coords
+                                                # Calculate the new eye angle.
+                                                eye_angle = np.arctan2(second_eye_coords[0] - first_eye_coords[0], second_eye_coords[1] - first_eye_coords[1])
+                                    # Apply a threshold to the frame.
+                                    thresh = ut.apply_threshold_to_frame(frame, eyes_threshold, invert = invert_threshold)
+                                    # Find the contours of the binary regions in the thresholded frame.
+                                    contours = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)[1]
+                                    # Iterate through each contour in the list of contours.
+                                    for i in range(len(contours)):
+                                        # Check if the first eye coordinate are within the current contour.
+                                        if cv2.pointPolygonTest(contours[i], (first_eye_coords[1], first_eye_coords[0]), False) == 1:
+                                            # Set the first eye coordinates to the centroid of the binary region and calculate the first eye angle.
+                                            M = cv2.moments(contours[i])
+                                            first_eye_coords = [int(round(M['m01']/M['m00'])), int(round(M['m10']/M['m00']))]
+                                            first_eye_angle = cv2.fitEllipse(contours[i])[2] * np.pi / 180
+                                        # Check if the second eye coordinate are within the current contour.
+                                        if cv2.pointPolygonTest(contours[i], (second_eye_coords[1], second_eye_coords[0]), False) == 1:
+                                            # Set the second eye coordinates to the centroid of the binary region and calculate the second eye angle.
+                                            M = cv2.moments(contours[i])
+                                            second_eye_coords = [int(round(M['m01']/M['m00'])), int(round(M['m10']/M['m00']))]
+                                            second_eye_angle = cv2.fitEllipse(contours[i])[2] * np.pi / 180
+                                # Find the midpoint of the line that connects both eyes.
+                                heading_coords = [(first_eye_coords[0] + second_eye_coords[0]) / 2, (first_eye_coords[1] + second_eye_coords[1]) / 2]
+                                # Find the swim bladder coordinates by finding the next brightest coordinates that lie on a circle around the heading coordinates with a radius equal to the distance between the eyes and the swim bladder.
+                                swim_bladder_coords = calculate_next_coords(heading_coords, dist_swim_bladder, frame, n_angles = 100, range_angles = 2 * np.pi, tail_calculation = False)
+                                # Find the body coordinates by finding the center of the triangle that connects the eyes and swim bladder.
+                                body_coords = [int(round((swim_bladder_coords[0] + first_eye_coords[0] + second_eye_coords[0]) / 3)), int(round((swim_bladder_coords[1] + first_eye_coords[1] + second_eye_coords[1]) / 3))]
+                                # Calculate the heading angle as the angle between the body coordinates and the heading coordinates.
+                                heading_angle = np.arctan2(heading_coords[0] - body_coords[0], heading_coords[1] - body_coords[1])
+                                # Check whether to to an additional process to calculate eye angles.
+                                if extended_eyes_calculation:
+                                    # Create an array that acts as a contour for the body and contains the swim bladder coordinates and eye coordinates.
+                                    body_contour = np.array([np.array([swim_bladder_coords[1], swim_bladder_coords[0]]), np.array([first_eye_coords[1], first_eye_coords[0]]), np.array([second_eye_coords[1], second_eye_coords[0]])])
+                                    # Check to see if the point that is created by drawing a line from the first eye coordinates with a length equal to half of the distance between the eyes is within the body contour. Occasionally, the angle of the eye is flipped to face towards the body instead of away. This is to check whether or not the eye angle should be flipped.
+                                    if cv2.pointPolygonTest(body_contour, (first_eye_coords[1] + (dist_eyes / 2 * np.cos(first_eye_angle)), first_eye_coords[0] + (dist_eyes / 2 * np.sin(first_eye_angle))), False) == 1:
+                                        # Flip the first eye angle.
+                                        if first_eye_angle > 0:
+                                            first_eye_angle -= np.pi
+                                        else:
+                                            first_eye_angle += np.pi
+                                    # Check to see if the point that is created by drawing a line from the first eye coordinates with a length equal to half of the distance between the eyes is within the body contour. Occasionally, the angle of the eye is flipped to face towards the body instead of away. This is to check whether or not the eye angle should be flipped.
+                                    if cv2.pointPolygonTest(body_contour, (second_eye_coords[1] + (dist_eyes / 2 * np.cos(second_eye_angle)), second_eye_coords[0] + (dist_eyes / 2 * np.sin(second_eye_angle))), False) == 1:
+                                        # Flip the second eye angle.
+                                        if second_eye_angle > 0:
+                                            second_eye_angle -= np.pi
+                                        else:
+                                            second_eye_angle += np.pi
+                                # Calculate the initial tail angle as the angle opposite to the heading angle.
+                                if heading_angle > 0:
+                                    tail_angle = heading_angle - np.pi
+                                else:
+                                    tail_angle = heading_angle + np.pi
+                                # Iterate through the number of tail points.
+                                for m in range(n_tail_points):
+                                    # Check if this is the first tail point.
+                                    if m == 0:
+                                        # Calculate the first tail point using the swim bladder as the first set of coordinates.
+                                        tail_point_coords[m] = ut.calculate_next_coords(swim_bladder_coords, dist_tail_points, frame, angle = tail_angle, range_angles = range_angles)
+                                    else:
+                                        # Check if this is the second tail point.
+                                        if m == 1:
+                                            # Calculate the next tail angle as the angle between the first tail point and the swim bladder.
+                                            tail_angle = np.arctan2(tail_point_coords[m - 1][0] - swim_bladder_coords[0], tail_point_coords[m - 1][1] - swim_bladder_coords[1])
+                                        # Check if the number of tail points calculated is greater than 2.
+                                        else:
+                                            # Calculate the next tail angle as the angle between the last two tail points.
+                                            tail_angle = np.arctan2(tail_point_coords[m - 1][0] - tail_point_coords[m - 2][0], tail_point_coords[m - 1][1] - tail_point_coords[m - 2][1])
+                                        # Calculate the next set of tail coordinates.
+                                        tail_point_coords[m] = ut.calculate_next_coords(tail_point_coords[m - 1], dist_tail_points, frame, angle = tail_angle, range_angles = range_angles)
+                                # Set the previous frame to the current frame.
+                                prev_frame = frame
+                                # Check whether to to an additional process to calculate eye angles.
+                                if extended_eyes_calculation:
+                                    # Set the previous eye angle to the current eye angle.
+                                    prev_eye_angle = eye_angle
+
+                            if save_video:
+                                # Check whether to to an additional process to calculate eye angles.
+                                if extended_eyes_calculation:
+                                    # Draw a circle arround the first eye coordinates.
+                                    original_frame = cv2.circle(original_frame, (first_eye_coords[1], first_eye_coords[0]), 1, colours[-3], -1)
+                                    # Draw a line representing the first eye angle.
+                                    original_frame = cv2.line(original_frame, (first_eye_coords[1], first_eye_coords[0]), (int(round(first_eye_coords[1] + (eyes_line_length * np.cos(first_eye_angle)))), int(round(first_eye_coords[0] + (eyes_line_length * np.sin(first_eye_angle))))), colours[-3], 1)
+                                    # Draw a circle around the second eye coordinates.
+                                    original_frame = cv2.circle(original_frame, (second_eye_coords[1], second_eye_coords[0]), 1, colours[-2], - 1)
+                                    # Draw a line representing the second eye angle.
+                                    original_frame = cv2.line(original_frame, (second_eye_coords[1], second_eye_coords[0]), (int(round(second_eye_coords[1] + (eyes_line_length * np.cos(second_eye_angle)))), int(round(second_eye_coords[0] + (eyes_line_length * np.sin(second_eye_angle))))), colours[-2], 1)
+                                else:
+                                    # Draw a circle arround the first eye coordinates.
+                                    original_frame = cv2.circle(original_frame, (first_eye_coords[1], first_eye_coords[0]), 1, colours[-3], -1)
+                                    # Draw a circle arround the second eye coordinates.
+                                    original_frame = cv2.circle(original_frame, (second_eye_coords[1], second_eye_coords[0]), 1, colours[-2], - 1)
+                                # Iterate through each set of tail points.
+                                for m in range(n_tail_points):
+                                    # Check if this is the first tail point
+                                    if m == 0:
+                                        # For the first tail point, draw around the midpoint of the line that connects the swim bladder to the first tail point.
+                                        original_frame = cv2.circle(original_frame, (int(round((swim_bladder_coords[1] + tail_point_coords[m][1]) / 2)), int(round((swim_bladder_coords[0] + tail_point_coords[m][0]) / 2))), 1, colours[m], -1)
+                                    else:
+                                        # For all subsequent tail points, draw around the midpoint of the line that connects the previous tail point to the current tail point.
+                                        original_frame = cv2.circle(original_frame, (int(round((tail_point_coords[m - 1][1] + tail_point_coords[m][1]) / 2)), int(round((tail_point_coords[m - 1][0] + tail_point_coords[m][0]) / 2))), 1, colours[m], -1)
+                                # Draw an arrow for the heading angle.
+                                original_frame = cv2.arrowedLine(original_frame, (int(round(heading_coords[1] - (heading_line_length / 2 * np.cos(heading_angle)))), int(round(heading_coords[0] - (heading_line_length / 2 * np.sin(heading_angle))))), (int(round(heading_coords[1] + (heading_line_length * np.cos(heading_angle)))), int(round(heading_coords[0] + (heading_line_length * np.sin(heading_angle))))), colours[-1], 1, tipLength = 0.2)
+                    except:
+                        # Handles any errors that occur throughout tracking.
+                        first_eye_coords = [np.nan, np.nan]
+                        second_eye_coords = [np.nan, np.nan]
+                        first_eye_angle = np.nan
+                        second_eye_angle = np.nan
+                        body_coords = [np.nan, np.nan]
+                        heading_angle = np.nan
+                        swim_bladder_coords = [np.nan, np.nan]
+                        tail_point_coords = [[np.nan, np.nan] for m in range(n_tail_points)]
+                        tail_points = [[np.nan, np.nan] for m in range(n_tail_points + 1)]
+                    # Iterate through the number of tail points, including the swim bladder coordinates.
+                    for m in range(n_tail_points + 1):
+                        # Check if this is the first tail point.
+                        if m == 0:
+                            # Add the swim bladder to a list that will contain all of the tail points, including the swim bladder.
+                            tail_points[m] = swim_bladder_coords
+                        else:
+                            # Add all of the tail points to the list.
+                            tail_points[m] = tail_point_coords[m - 1]
+                    # Add all of the important features that were tracked into lists.
+                    eye_coord_array.append([first_eye_coords, second_eye_coords])
+                    eye_angle_array.append([first_eye_angle, second_eye_angle])
+                    tail_coord_array.append(tail_points)
+                    body_coord_array.append(body_coords)
+                    heading_angle_array.append(heading_angle)
+                    if save_video:
+                        # Write the new frame that contains the annotated frame with tracked points to a new video.
+                        writer.write(original_frame)
+        elif tracking_method == 'head_fixed':
+            # Iterate through each frame.
+            for n in range(n_frames):
+                self.progress_signal.emit(n + 1, self.current_status)
+                # Load a frame into memory.
+                success, original_frame = capture.read()
+                # Checks if the frame was loaded successfully.
+                if success:
+                    # Initialize variables for each frame.
+                    first_eye_coords = [np.nan, np.nan]
+                    second_eye_coords = [np.nan, np.nan]
+                    first_eye_angle = np.nan
+                    second_eye_angle = np.nan
+                    body_coords = [np.nan, np.nan]
+                    heading_angle = np.nan
+                    swim_bladder_coords = [np.nan, np.nan]
+                    tail_point_coords = [[np.nan, np.nan] for m in range(n_tail_points)]
+                    tail_points = [[np.nan, np.nan] for m in range(n_tail_points + 1)]
+                    # Convert the original frame to grayscale.
+                    frame = cv2.cvtColor(original_frame, cv2.COLOR_BGR2GRAY).astype(np.uint8)
+                    try:
+                        # Check to ensure that the maximum pixel value is greater than a certain value. Useful for determining whether or not the at least one of the eyes is present in the frame.
+                        if np.min(frame) < pixel_threshold:
+                            # Check to see if it's not the first frame and check if the sum of the absolute difference between the current frame and the previous frame is greater than a certain threshold. This helps reduce frame to frame noise in the position of the pixels.
+                            if prev_frame is not None and np.sum(np.abs(frame.astype(float) - prev_frame.astype(float)) >= frame_change_threshold) == 0:
+                                # If the difference between the current frame and the previous frame is less than a certain threshold, then use the values that were previously calculated.
+                                first_eye_coords, second_eye_coords = eye_coord_array[len(eye_coord_array) - 1]
+                                first_eye_angle, second_eye_angle = eye_angle_array[len(eye_angle_array) - 1]
+                                body_coords = body_coord_array[len(body_coord_array) - 1]
+                                heading_angle = heading_angle_array[len(heading_angle_array) - 1]
+                                swim_bladder_coords = tail_coord_array[len(tail_coord_array) - 1][0]
+                                tail_point_coords = tail_coord_array[len(tail_coord_array) - 1][1:]
+                            else:
+                                if initial_pixel_search == 'darkest':
+                                    # Return the coordinate of the brightest pixel.
+                                    first_eye_coords = [np.where(frame == np.min(frame))[0][0], np.where(frame == np.min(frame))[1][0]]
+                                elif initial_pixel_search == 'brightest':
+                                    first_eye_coords = [np.where(frame == np.max(frame))[0][0], np.where(frame == np.max(frame))[1][0]]
+                                # Calculate the next brightest pixel that lies on the circle drawn around the first eye coordinates and has a radius equal to the distance between the eyes.
+                                second_eye_coords = ut.calculate_next_coords(first_eye_coords, dist_eyes, frame, method = initial_pixel_search, n_angles = 100, range_angles = 2 * np.pi, tail_calculation = False)
+                                # Check whether to to an additional process to calculate eye angles.
+                                if extended_eyes_calculation:
+                                    # Calculate the angle between the two eyes.
+                                    eye_angle = np.arctan2(second_eye_coords[0] - first_eye_coords[0], second_eye_coords[1] - first_eye_coords[1])
+                                    # Check if this is the first frame.
+                                    if prev_eye_angle is not None:
+                                        # Check if the difference between the current eye angle and previous eye angle is somwehere around pi, meaning the first and second eye coordiantes have reversed. Occasionally, the coordinates of the eyes will switch between one and the other. This method is useful for keeping the positions of the left and right eye the same between frames.
+                                        if eye_angle - prev_eye_angle > np.pi / 2 or eye_angle - prev_eye_angle < -np.pi / 2:
+                                            if eye_angle - prev_eye_angle < np.pi * 3 / 2 and eye_angle - prev_eye_angle > -np.pi * 3 / 2:
+                                                # Switch the first and second eye coordinates.
+                                                coords = first_eye_coords
+                                                first_eye_coords = second_eye_coords
+                                                second_eye_coords = coords
+                                                # Calculate the new eye angle.
+                                                eye_angle = np.arctan2(second_eye_coords[0] - first_eye_coords[0], second_eye_coords[1] - first_eye_coords[1])
+                                    # Apply a threshold to the frame.
+                                    thresh = ut.apply_threshold_to_frame(frame, eyes_threshold, invert = invert_threshold)
+                                    # Find the contours of the binary regions in the thresholded frame.
+                                    contours = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)[1]
+                                    # Iterate through each contour in the list of contours.
+                                    for i in range(len(contours)):
+                                        # Check if the first eye coordinate are within the current contour.
+                                        if cv2.pointPolygonTest(contours[i], (first_eye_coords[1], first_eye_coords[0]), False) == 1:
+                                            # Set the first eye coordinates to the centroid of the binary region and calculate the first eye angle.
+                                            M = cv2.moments(contours[i])
+                                            first_eye_coords = [int(round(M['m01']/M['m00'])), int(round(M['m10']/M['m00']))]
+                                            first_eye_angle = cv2.fitEllipse(contours[i])[2] * np.pi / 180
+                                        # Check if the second eye coordinate are within the current contour.
+                                        if cv2.pointPolygonTest(contours[i], (second_eye_coords[1], second_eye_coords[0]), False) == 1:
+                                            # Set the second eye coordinates to the centroid of the binary region and calculate the second eye angle.
+                                            M = cv2.moments(contours[i])
+                                            second_eye_coords = [int(round(M['m01']/M['m00'])), int(round(M['m10']/M['m00']))]
+                                            second_eye_angle = cv2.fitEllipse(contours[i])[2] * np.pi / 180
+                                # Find the midpoint of the line that connects both eyes.
+                                heading_coords = [(first_eye_coords[0] + second_eye_coords[0]) / 2, (first_eye_coords[1] + second_eye_coords[1]) / 2]
+                                # Convert the frame into the absolute difference between the frame and the background.
+                                frame = cv2.absdiff(frame, background)
+                                # Apply a median blur filter to the frame.
+                                frame = cv2.medianBlur(frame, median_blur)
+                                # Find the swim bladder coordinates by finding the next brightest coordinates that lie on a circle around the heading coordinates with a radius equal to the distance between the eyes and the swim bladder.
+                                swim_bladder_coords = ut.calculate_next_coords(heading_coords, dist_swim_bladder, frame, n_angles = 100, range_angles = 2 * np.pi, tail_calculation = False)
+                                # Find the body coordinates by finding the center of the triangle that connects the eyes and swim bladder.
+                                body_coords = [int(round((swim_bladder_coords[0] + first_eye_coords[0] + second_eye_coords[0]) / 3)), int(round((swim_bladder_coords[1] + first_eye_coords[1] + second_eye_coords[1]) / 3))]
+                                # Calculate the heading angle as the angle between the body coordinates and the heading coordinates.
+                                heading_angle = np.arctan2(heading_coords[0] - body_coords[0], heading_coords[1] - body_coords[1])
+                                # Check whether to to an additional process to calculate eye angles.
+                                if extended_eyes_calculation:
+                                    # Create an array that acts as a contour for the body and contains the swim bladder coordinates and eye coordinates.
+                                    body_contour = np.array([np.array([swim_bladder_coords[1], swim_bladder_coords[0]]), np.array([first_eye_coords[1], first_eye_coords[0]]), np.array([second_eye_coords[1], second_eye_coords[0]])])
+                                    # Check to see if the point that is created by drawing a line from the first eye coordinates with a length equal to half of the distance between the eyes is within the body contour. Occasionally, the angle of the eye is flipped to face towards the body instead of away. This is to check whether or not the eye angle should be flipped.
+                                    if cv2.pointPolygonTest(body_contour, (first_eye_coords[1] + (dist_eyes / 2 * np.cos(first_eye_angle)), first_eye_coords[0] + (dist_eyes / 2 * np.sin(first_eye_angle))), False) == 1:
+                                        # Flip the first eye angle.
+                                        if first_eye_angle > 0:
+                                            first_eye_angle -= np.pi
+                                        else:
+                                            first_eye_angle += np.pi
+                                    # Check to see if the point that is created by drawing a line from the first eye coordinates with a length equal to half of the distance between the eyes is within the body contour. Occasionally, the angle of the eye is flipped to face towards the body instead of away. This is to check whether or not the eye angle should be flipped.
+                                    if cv2.pointPolygonTest(body_contour, (second_eye_coords[1] + (dist_eyes / 2 * np.cos(second_eye_angle)), second_eye_coords[0] + (dist_eyes / 2 * np.sin(second_eye_angle))), False) == 1:
+                                        # Flip the second eye angle.
+                                        if second_eye_angle > 0:
+                                            second_eye_angle -= np.pi
+                                        else:
+                                            second_eye_angle += np.pi
+                                # Calculate the initial tail angle as the angle opposite to the heading angle.
+                                if heading_angle > 0:
+                                    tail_angle = heading_angle - np.pi
+                                else:
+                                    tail_angle = heading_angle + np.pi
+                                # Iterate through the number of tail points.
+                                for m in range(n_tail_points):
+                                    # Check if this is the first tail point.
+                                    if m == 0:
+                                        # Calculate the first tail point using the swim bladder as the first set of coordinates.
+                                        tail_point_coords[m] = ut.calculate_next_coords(swim_bladder_coords, dist_tail_points, frame, angle = tail_angle, range_angles = range_angles)
+                                    else:
+                                        # Check if this is the second tail point.
+                                        if m == 1:
+                                            # Calculate the next tail angle as the angle between the first tail point and the swim bladder.
+                                            tail_angle = np.arctan2(tail_point_coords[m - 1][0] - swim_bladder_coords[0], tail_point_coords[m - 1][1] - swim_bladder_coords[1])
+                                        # Check if the number of tail points calculated is greater than 2.
+                                        else:
+                                            # Calculate the next tail angle as the angle between the last two tail points.
+                                            tail_angle = np.arctan2(tail_point_coords[m - 1][0] - tail_point_coords[m - 2][0], tail_point_coords[m - 1][1] - tail_point_coords[m - 2][1])
+                                        # Calculate the next set of tail coordinates.
+                                        tail_point_coords[m] = ut.calculate_next_coords(tail_point_coords[m - 1], dist_tail_points, frame, angle = tail_angle, range_angles = range_angles)
+                                # Set the previous frame to the current frame.
+                                prev_frame = frame
+                                # Check whether to to an additional process to calculate eye angles.
+                                if extended_eyes_calculation:
+                                    # Set the previous eye angle to the current eye angle.
+                                    prev_eye_angle = eye_angle
+
+                            if save_video:
+                                # Check whether to to an additional process to calculate eye angles.
+                                if extended_eyes_calculation:
+                                    # Draw a circle arround the first eye coordinates.
+                                    original_frame = cv2.circle(original_frame, (first_eye_coords[1], first_eye_coords[0]), 1, colours[-3], -1)
+                                    # Draw a line representing the first eye angle.
+                                    original_frame = cv2.line(original_frame, (first_eye_coords[1], first_eye_coords[0]), (int(round(first_eye_coords[1] + (eyes_line_length * np.cos(first_eye_angle)))), int(round(first_eye_coords[0] + (eyes_line_length * np.sin(first_eye_angle))))), colours[-3], 1)
+                                    # Draw a circle around the second eye coordinates.
+                                    original_frame = cv2.circle(original_frame, (second_eye_coords[1], second_eye_coords[0]), 1, colours[-2], - 1)
+                                    # Draw a line representing the second eye angle.
+                                    original_frame = cv2.line(original_frame, (second_eye_coords[1], second_eye_coords[0]), (int(round(second_eye_coords[1] + (eyes_line_length * np.cos(second_eye_angle)))), int(round(second_eye_coords[0] + (eyes_line_length * np.sin(second_eye_angle))))), colours[-2], 1)
+                                else:
+                                    # Draw a circle arround the first eye coordinates.
+                                    original_frame = cv2.circle(original_frame, (first_eye_coords[1], first_eye_coords[0]), 1, colours[-3], -1)
+                                    # Draw a circle arround the second eye coordinates.
+                                    original_frame = cv2.circle(original_frame, (second_eye_coords[1], second_eye_coords[0]), 1, colours[-2], - 1)
+                                # Iterate through each set of tail points.
+                                for m in range(n_tail_points):
+                                    # Check if this is the first tail point
+                                    if m == 0:
+                                        # For the first tail point, draw around the midpoint of the line that connects the swim bladder to the first tail point.
+                                        original_frame = cv2.circle(original_frame, (int(round((swim_bladder_coords[1] + tail_point_coords[m][1]) / 2)), int(round((swim_bladder_coords[0] + tail_point_coords[m][0]) / 2))), 1, colours[m], -1)
+                                    else:
+                                        # For all subsequent tail points, draw around the midpoint of the line that connects the previous tail point to the current tail point.
+                                        original_frame = cv2.circle(original_frame, (int(round((tail_point_coords[m - 1][1] + tail_point_coords[m][1]) / 2)), int(round((tail_point_coords[m - 1][0] + tail_point_coords[m][0]) / 2))), 1, colours[m], -1)
+                                # Draw an arrow for the heading angle.
+                                original_frame = cv2.arrowedLine(original_frame, (int(round(heading_coords[1] - (heading_line_length / 2 * np.cos(heading_angle)))), int(round(heading_coords[0] - (heading_line_length / 2 * np.sin(heading_angle))))), (int(round(heading_coords[1] + (heading_line_length * np.cos(heading_angle)))), int(round(heading_coords[0] + (heading_line_length * np.sin(heading_angle))))), colours[-1], 1, tipLength = 0.2)
+                    except:
+                        # Handles any errors that occur throughout tracking.
+                        first_eye_coords = [np.nan, np.nan]
+                        second_eye_coords = [np.nan, np.nan]
+                        first_eye_angle = np.nan
+                        second_eye_angle = np.nan
+                        body_coords = [np.nan, np.nan]
+                        heading_angle = np.nan
+                        swim_bladder_coords = [np.nan, np.nan]
+                        tail_point_coords = [[np.nan, np.nan] for m in range(n_tail_points)]
+                        tail_points = [[np.nan, np.nan] for m in range(n_tail_points + 1)]
+                    # Iterate through the number of tail points, including the swim bladder coordinates.
+                    for m in range(n_tail_points + 1):
+                        # Check if this is the first tail point.
+                        if m == 0:
+                            # Add the swim bladder to a list that will contain all of the tail points, including the swim bladder.
+                            tail_points[m] = swim_bladder_coords
+                        else:
+                            # Add all of the tail points to the list.
+                            tail_points[m] = tail_point_coords[m - 1]
+                    # Add all of the important features that were tracked into lists.
+                    eye_coord_array.append([first_eye_coords, second_eye_coords])
+                    eye_angle_array.append([first_eye_angle, second_eye_angle])
+                    tail_coord_array.append(tail_points)
+                    body_coord_array.append(body_coords)
+                    heading_angle_array.append(heading_angle)
+                    if save_video:
+                        # Write the new frame that contains the annotated frame with tracked points to a new video.
+                        writer.write(original_frame)
+
+        # Unload the video and writer from memory.
+        capture.release()
+        if save_video:
+            writer.release()
+
+        # Create a dictionary that contains all of the results.
+        results =   {   'eye_coord_array' : eye_coord_array,
+                        'eye_angle_array' : eye_angle_array,
+                        'tail_coord_array' : tail_coord_array,
+                        'body_coord_array' : body_coord_array,
+                        'heading_angle_array' : heading_angle_array,
+                        'video_path' : video_path,
+                        'video_n_frames' : video_n_frames,
+                        'video_fps' : video_fps,
+                        'dist_tail_points' : dist_tail_points,
+                        'dist_eyes' : dist_eyes,
+                        'dist_swim_bladder' : dist_swim_bladder,
+                        'eyes_threshold' : eyes_threshold,
+                        'pixel_threshold' : pixel_threshold,
+                        'frame_change_threshold' : frame_change_threshold,
+                        'colours' : colours
+                    }
+
+        # Create a path that will contain all of the results from tracking.
+        data_path = "{0}\\{1}_results.npy".format(save_path, os.path.basename(video_path)[:-4])
+
+        # Save the results to a npz file.
+        np.save(data_path, results)
+
+        time.sleep(0.5)
+
+        self.tracking_finished_signal.emit(True)
 
 class TrackAllVideosThread(QThread):
 
@@ -2778,21 +3619,286 @@ class TrackAllVideosThread(QThread):
                             frame_change_threshold = frame_change_threshold, eyes_threshold = eyes_threshold, initial_pixel_search = initial_pixel_search,
                             invert_threshold = invert_threshold, range_angles = range_angles, convert_colours_from_RGB_to_BGR = True)
 
-class CalculateBackgroundThread(QThread):
+class CalculateBackgroundProgressWindow(QMainWindow):
 
-    background_calculated_signal = pyqtSignal(bool)
+    background_calculation_completed_signal = pyqtSignal(bool)
 
+    # Defining Initialization Functions
     def __init__(self):
-        super(CalculateBackgroundThread, self).__init__()
+        super(CalculateBackgroundProgressWindow, self).__init__()
+        self.initUI()
+
+    def initUI(self):
+        self.initialize_class_variables()
+        self.add_processing_video_label()
+        self.add_current_status_label()
+        self.add_background_calculation_progress_bar()
+        self.add_total_time_elapsed_label()
+        self.add_cancel_background_calculation_button()
+        self.setWindowTitle('Background Calculation in Progress')
+        self.setFixedSize(500, 200)
+
+    def initialize_class_variables(self):
         self.video_path = None
         self.background = None
         self.background_calculation_method = None
-        self.frame_chunk_size = None
-        self.frames_to_skip = None
+        self.background_calculation_frame_chunk_width = None
+        self.background_calculation_frame_chunk_height = None
+        self.background_calculation_frames_to_skip = None
+        self.save_path = None
+        self.save_background = None
+        self.calculate_background_thread = None
+
+        self.video_n_frames = None
+
+    def add_processing_video_label(self):
+        self.processing_video_label = QLabel(self)
+        self.processing_video_label.move(40, 10)
+        self.processing_video_label.resize(400, 20)
+
+    def add_current_status_label(self):
+        self.current_status_label = QLabel(self)
+        self.current_status_label.move(40, 40)
+        self.current_status_label.resize(400, 20)
+
+    def add_background_calculation_progress_bar(self):
+        self.background_calculation_progress_bar = QProgressBar(self)
+        self.background_calculation_progress_bar.move(50, 70)
+        self.background_calculation_progress_bar.resize(400, 30)
+        self.background_calculation_progress_bar.setMinimum(0)
+
+    def add_total_time_elapsed_label(self):
+        self.total_time_elapsed_label = QLabel(self)
+        self.total_time_elapsed_label.move(40, 110)
+        self.total_time_elapsed_label.resize(400, 20)
+
+    def add_cancel_background_calculation_button(self):
+        self.cancel_background_calculation_button = QPushButton('Cancel', self)
+        self.cancel_background_calculation_button.move(150, 140)
+        self.cancel_background_calculation_button.resize(200, 50)
+        self.cancel_background_calculation_button.clicked.connect(self.close)
+
+    def update_processing_video_label(self):
+        self.processing_video_label.setText('Processing Video: {0}'.format(self.video_path))
+
+    def update_current_status_label(self, value):
+        self.current_status_label.setText('Current Status: {0}'.format(value))
+
+    def update_progress_bar_range(self):
+        self.background_calculation_progress_bar.setMaximum(self.video_n_frames)
+
+    def update_background_calculation_progress_from_background_calculation_thread(self, value):
+        self.background_calculation_progress_bar.setValue(value)
+
+    def update_current_status_label_from_background_calculation_thread(self, value):
+        self.current_status_label.setText('Current Status: {0}'.format(value))
+
+    def update_total_time_elapsed_label(self, value):
+        elapsed_time = int(round(value, 0))
+        if elapsed_time == 1:
+            self.total_time_elapsed_label.setText('Total Time Elapsed: {0} second'.format(elapsed_time))
+        else:
+            self.total_time_elapsed_label.setText('Total Time Elapsed: {0} seconds'.format(elapsed_time))
+
+    def update_background_calculation_completed_signal(self):
+        self.background = self.calculate_background_thread.background
+        # print(self.background)
+        self.background_calculation_completed_signal.emit(True)
+        self.close()
+
+    def trigger_calculate_background(self):
+        self.calculate_background_thread = CalculateBackgroundThread()
+        self.calculate_background_thread.video_path = self.video_path
+        self.calculate_background_thread.background_calculation_method = self.background_calculation_method
+        self.calculate_background_thread.background_calculation_frame_chunk_width = self.background_calculation_frame_chunk_width
+        self.calculate_background_thread.background_calculation_frame_chunk_height = self.background_calculation_frame_chunk_height
+        self.calculate_background_thread.background_calculation_frames_to_skip = self.background_calculation_frames_to_skip
+        self.calculate_background_thread.save_path = self.save_path
+        self.calculate_background_thread.save_background = self.save_background
+        self.calculate_background_thread.start()
+        self.calculate_background_thread.progress_signal.connect(self.update_background_calculation_progress_from_background_calculation_thread)
+        self.calculate_background_thread.current_status_signal.connect(self.update_current_status_label)
+        self.calculate_background_thread.total_time_elapsed_signal.connect(self.update_total_time_elapsed_label)
+        self.calculate_background_thread.background_calculation_finished_signal.connect(self.update_background_calculation_completed_signal)
+
+    def closeEvent(self, event):
+        if self.calculate_background_thread is not None:
+            if self.calculate_background_thread.timer_thread is not None:
+                if self.calculate_background_thread.timer_thread.isRunning():
+                    self.calculate_background_thread.timer_thread.terminate()
+            if self.calculate_background_thread.isRunning():
+                self.calculate_background_thread.terminate()
+        event.accept()
+
+class CalculateBackgroundThread(QThread):
+
+    background_calculation_finished_signal = pyqtSignal(bool)
+    progress_signal = pyqtSignal(float)
+    current_status_signal = pyqtSignal(str)
+    total_time_elapsed_signal = pyqtSignal(float)
+
+    def __init__(self):
+        super(CalculateBackgroundThread, self).__init__()
+        self.initialize_class_variables()
+
+    def initialize_class_variables(self):
+        self.background = None
+        self.video_path = None
+        self.background_calculation_method = None
+        self.background_calculation_frame_chunk_width = None
+        self.background_calculation_frame_chunk_height = None
+        self.background_calculation_frames_to_skip = None
+        self.timer_thread = None
+        self.periods = None
+        self.current_status = None
+        self.start_time = None
+        self.total_time_elapsed = None
+
+    def update_current_status(self, value):
+        if self.current_status is not None:
+            if self.periods is None:
+                self.periods = '.'
+            elif len(self.periods) == 6:
+                self.periods = '.'
+            else:
+                self.periods += '.'
+            self.current_status_signal.emit(self.current_status + self.periods)
+        if self.start_time is None:
+            self.start_time = value
+            self.total_time_elapsed = self.start_time
+        else:
+            self.total_time_elapsed = value - self.start_time
+        self.total_time_elapsed_signal.emit(self.total_time_elapsed)
 
     def run(self):
-        self.background = ut.calculate_background(self.video_path, method = self.background_calculation_method, chunk_size = self.frame_chunk_size, frames_to_skip = self.frames_to_skip)
-        self.background_calculated_signal.emit(True)
+        self.timer_thread = TimerThread()
+        self.timer_thread.start()
+        self.timer_thread.time_signal.connect(self.update_current_status)
+        self.background = self.calculate_background(self.video_path, self.background_calculation_method, [self.background_calculation_frame_chunk_width, self.background_calculation_frame_chunk_height], self.background_calculation_frames_to_skip, self.save_path, self.save_background)
+        self.background_calculation_finished_signal.emit(True)
+
+    def calculate_background(self, video_path, method, chunk_size, frames_to_skip, save_path, save_background):
+        # Check arguments.
+        if not isinstance(video_path, str):
+            print('Error: video_path must be formatted as a string.')
+            return
+        if not isinstance(method, str) or method not in ['brightest', 'darkest', 'mode']:
+            print('Error: method must be formatted as a string and must be one of the following: brightest, darkest, or mode.')
+            return
+        if not isinstance(save_background, bool):
+            print('Error: save_background must be formatted as a boolean (True/False).')
+            return
+        if not isinstance(chunk_size, list):
+            print('Error: chunk_size must be formatted as a list containing 2 integer values.')
+            return
+        if len(chunk_size) != 2:
+            print('Error: chunk_size must be formatted as a list containing 2 integer values.')
+            return
+        if not isinstance(chunk_size[0], int) or not isinstance(chunk_size[1], int):
+            print('Error: chunk_size must be formatted as a list containing 2 integer values.')
+            return
+        if not isinstance(frames_to_skip, int):
+            print('Error: frames_to_skip must be formatted as an integer.')
+            return
+
+        self.current_status = 'Calculating Background'
+
+        frame_size = ut.get_frame_size_from_video(video_path)
+        video_n_frames = ut.get_total_frame_number_from_video(video_path)
+
+        try:
+            # Load the video.
+            capture = cv2.VideoCapture(video_path)
+            # Retrieve total number of frames in video.
+            frames_to_skip += 1
+
+            if method == 'mode':
+                background = np.zeros(frame_size)
+                pix = []
+                width_iterations = int(frame_size[0]/chunk_size[0])
+                if frame_size[0] % chunk_size[0] != 0:
+                    width_iterations += 1
+                height_iterations = int(frame_size[1] / chunk_size[1])
+                if frame_size[1] % chunk_size[1] != 0:
+                    height_iterations += 1
+                for i in range(height_iterations):
+                    for j in range(width_iterations):
+                        for frame_num in range(video_n_frames):
+                            self.progress_signal.emit((frame_num + 1 + (j * video_n_frames) + (video_n_frames * width_iterations * i)) / (width_iterations * height_iterations * video_n_frames) * video_n_frames)
+                            success, frame = capture.read()
+                            if success:
+                                if frame_num % frames_to_skip == 0:
+                                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                                    if i == height_iterations - 1 and j == width_iterations - 1:
+                                        pix.append(frame[i * chunk_size[1] : , j * chunk_size[0] : ])
+                                    elif i == height_iterations - 1:
+                                        pix.append(frame[i * chunk_size[1] : , j * chunk_size[0] : j * chunk_size[0] + chunk_size[0]])
+                                    elif j == width_iterations - 1:
+                                        pix.append(frame[i * chunk_size[1] : i * chunk_size[1] + chunk_size[1], j * chunk_size[0] : ])
+                                    else:
+                                        pix.append(frame[i * chunk_size[1] : i * chunk_size[1] + chunk_size[1], j * chunk_size[0] : j * chunk_size[0] + chunk_size[0]])
+                        bg_pix = stats.mode(pix)[0]
+                        if i == height_iterations - 1 and j == width_iterations - 1:
+                            background[i * chunk_size[1] : , j * chunk_size[0] : ] = bg_pix
+                        elif i == height_iterations - 1:
+                            background[i * chunk_size[1] : , j * chunk_size[0] : j * chunk_size[0] + chunk_size[0]] = bg_pix
+                        elif j == width_iterations - 1:
+                            background[i * chunk_size[1] : i * chunk_size[1] + chunk_size[1], j * chunk_size[0] : ] = bg_pix
+                        else:
+                            background[i * chunk_size[1] : i * chunk_size[1] + chunk_size[1], j * chunk_size[0] : j * chunk_size[0] + chunk_size[0]] = bg_pix
+                        pix = []
+                        capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                background = background.astype(np.uint8)
+                if save_background:
+                    if save_path != None:
+                        background_path = '{0}\\{1}_background.tif'.format(save_path, os.path.basename(video_path)[:-4])
+                    else:
+                        background_path = '{0}_background.tif'.format(video_path[:-4])
+                    cv2.imwrite(background_path, background)
+            else:
+                # Iterate through each frame in the video.
+                for frame_num in range(video_n_frames):
+                    self.progress_signal.emit(frame_num + 1)
+                    # Load frame into memory.
+                    success, frame = capture.read()
+                    # Check if frame was loaded successfully.
+                    if success:
+                        if frame_num % frames_to_skip == 0:
+                            # Convert frame to grayscale.
+                            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                            # Copy frame into background if this is the first frame.
+                            if frame_num == 0:
+                                background = frame.copy().astype(np.float32)
+                            elif method == 'brightest':
+                                # Create a mask where the background is compared to the frame in the loop and used to update the background where the frame is.
+                                mask = np.less(background, frame)
+                                # Update the background image where all of the pixels in the new frame are brighter than the background image.
+                                background[mask] = frame[mask]
+                            elif method == 'darkest':
+                                # Create a mask where the background is compared to the frame in the loop and used to update the background where the frame is.
+                                mask = np.greater(background, frame)
+                                # Update the background image where all of the pixels in the new frame are darker than the background image.
+                                background[mask] = frame[mask]
+                background = background.astype(np.uint8)
+                # Save the background into an external file if requested.
+                if save_background:
+                    if save_path != None:
+                        background_path = '{0}\\{1}_background.tif'.format(save_path, os.path.basename(video_path)[:-4])
+                    else:
+                        background_path = '{0}_background.tif'.format(video_path[:-4])
+                    cv2.imwrite(background_path, background)
+        except:
+            # Errors that may occur during the background calculation are handled.
+            print('Error calculating background')
+            if capture.isOpened():
+                capture.release()
+            return None
+        if capture.isOpened():
+            # Unload video from memory.
+            capture.release()
+        # Return the calculated background.
+        time.sleep(0.5)
+        return background
 
 class PlottingWindow(QScrollArea):
 
@@ -3707,6 +4813,21 @@ class DataPlot(QMainWindow):
         self.eye_angles_plot_axis.set_xlabel('Time (s)')
         self.eye_angles_plot_axis.set_ylabel('Angle (radians)')
         self.eye_angles_plot_axis.set_title('Eye Angles Over Time')
+
+class TimerThread(QThread):
+
+    time_signal = pyqtSignal(float)
+
+    def __init__(self):
+        super(TimerThread, self).__init__()
+        self.running = False
+
+    def run(self):
+        self.running = True
+        while self.running:
+            time_now = time.perf_counter()
+            self.time_signal.emit(time_now)
+            time.sleep(0.5)
 
 class VideoPlaybackThread(QThread):
 

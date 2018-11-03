@@ -9,6 +9,8 @@ import multiprocessing as mp
 import time
 import scipy.stats as stats
 
+from PyQt5.QtCore import *
+
 def get_total_frame_number_from_video(video_path):
     capture = cv2.VideoCapture(video_path)
     total_frame_number = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -33,7 +35,7 @@ def get_video_format_from_video(video_path):
     capture.release()
     return video_format
 
-def calculate_background(video_path, method = 'brightest', save_path = None, save_background = False, chunk_size = [100, 100], frames_to_skip = 0):
+def calculate_background(video_path, method = 'brightest', save_path = None, save_background = False, chunk_size = [100, 100], frames_to_skip = 0, print_progress = True, emit_progress_signal = False):
 
     '''
     Function that calculates the background of a video.
@@ -91,7 +93,8 @@ def calculate_background(video_path, method = 'brightest', save_path = None, sav
         print('Error: frames_to_skip must be formatted as an integer.')
         return
 
-    t0 = time.time()
+    if print_progress:
+        t0 = time.time()
 
     try:
         # Load the video.
@@ -112,8 +115,9 @@ def calculate_background(video_path, method = 'brightest', save_path = None, sav
                 width_iterations += 1
             for i in range(height_iterations):
                 for j in range(width_iterations):
-                    print('Calculating background. Processing chunk number: {0}/{1}.'.format((j + 1) + (width_iterations * i), width_iterations * height_iterations), end = '\r')
                     for frame_num in range(video_total_frames):
+                        if print_progress:
+                            print('Calculating background. Processing frame number: {0}/{1}.'.format(frame_num + 1 + (j * video_total_frames) + (video_total_frames * width_iterations * i), video_total_frames * width_iterations * height_iterations), end = '\r')
                         success, frame = capture.read()
                         if success:
                             if frame_num % frames_to_skip == 0:
@@ -138,7 +142,8 @@ def calculate_background(video_path, method = 'brightest', save_path = None, sav
                     pix = []
                     capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
             background = background.astype(np.uint8)
-            print('Calculating background complete. Processing chunk number: {0}/{1}.'.format((j + 1) + (width_iterations * i), width_iterations * height_iterations))
+            if print_progress:
+                print('Calculating background complete. Processing frame number: {0}/{1}.'.format(1 + frame_num + (j * video_total_frames) + (video_total_frames * width_iterations * i), video_total_frames * width_iterations * height_iterations))
             if save_background:
                 if save_path != None:
                     background_path = '{0}\\{1}_background.tif'.format(save_path, os.path.basename(video_path)[:-4])
@@ -148,7 +153,10 @@ def calculate_background(video_path, method = 'brightest', save_path = None, sav
         else:
             # Iterate through each frame in the video.
             for frame_num in range(video_total_frames):
-                print('Calculating background. Processing frame number: {0}/{1}.'.format(frame_num + 1, video_total_frames), end = '\r')
+                if emit_progress_signal:
+                    progress_signal.emit([frame_num + 1, video_total_frames])
+                if print_progress:
+                    print('Calculating background. Processing frame number: {0}/{1}.'.format(frame_num + 1, video_total_frames), end = '\r')
                 # Load frame into memory.
                 success, frame = capture.read()
                 # Check if frame was loaded successfully.
@@ -170,7 +178,8 @@ def calculate_background(video_path, method = 'brightest', save_path = None, sav
                             # Update the background image where all of the pixels in the new frame are darker than the background image.
                             background[mask] = frame[mask]
             background = background.astype(np.uint8)
-            print('Calculating background complete. Processing frame number: {0}/{1}.'.format(frame_num + 1, video_total_frames))
+            if print_progress:
+                print('Calculating background complete. Processing frame number: {0}/{1}.'.format(frame_num + 1, video_total_frames))
             # Save the background into an external file if requested.
             if save_background:
                 if save_path != None:
@@ -187,7 +196,8 @@ def calculate_background(video_path, method = 'brightest', save_path = None, sav
     if capture.isOpened():
         # Unload video from memory.
         capture.release()
-    print('Total processing time: {0} seconds.'.format(time.time() - t0))
+    if print_progress:
+        print('Total processing time: {0} seconds.'.format(time.time() - t0))
     # Return the calculated background.
     return background
 
@@ -933,12 +943,12 @@ def track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes,
                 background_calculation_method = 'brightest', background_calculation_frames_to_skip = 10,
                 background_calculation_frame_chunk_width = 250, background_calculation_frame_chunk_height = 250,
                 tracking_method = 'free_swimming', save_video = True, n_frames = None,
-                starting_frame = 0, save_path = None, background_path = None,
+                starting_frame = 0, save_path = None, background_path = None, background = None,
                 save_background = True, extended_eyes_calculation = False,
                 eyes_threshold = None, line_length = 0, video_fps = None,
                 pixel_threshold = 100, frame_change_threshold = 10, convert_colours_from_RGB_to_BGR = False,
                 range_angles = 120, median_blur_value = 3, initial_pixel_search = 'brightest',
-                invert_threshold = False):
+                invert_threshold = False, eyes_line_length = 0, print_progress = True, emit_progress_signal = False):
     '''
     Tracks a video.
 
@@ -987,7 +997,8 @@ def track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes,
             ** Saved as a dictionary containing arrays of the eye coordinates, heading angle, eye angles, and tail points.
     '''
 
-    t0 = time.time()
+    if print_progress:
+        t0 = time.time()
 
     if convert_colours_from_RGB_to_BGR:
         colours = [[colours[i][2], colours[i][1], colours[i][0]] for i in range(len(colours))]
@@ -995,22 +1006,31 @@ def track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes,
     if line_length == 0:
         line_length = dist_eyes
 
+    if extended_eyes_calculation and eyes_line_length == 0:
+        eyes_line_length = line_length
+
     if not extended_eyes_calculation and eyes_threshold is not None:
         eyes_threshold = None
 
     if save_path == None:
         save_path = os.path.dirname(video_path)
 
-    # Create or load background image.
-    if background_path is None:
-        background = calculate_background(video_path, method = background_calculation_method, chunk_size = [background_calculation_frame_chunk_width, background_calculation_frame_chunk_height],
-                                            frames_to_skip = background_calculation_frames_to_skip, save_path = save_path, save_background = save_background)
-    else:
-        background = cv2.imread(background_path, cv2.IMREAD_GRAYSCALE).astype(np.uint8)
+    if background is None:
+        # Create or load background image.
+        if background_path is None:
+            background = calculate_background(video_path, method = background_calculation_method, chunk_size = [background_calculation_frame_chunk_width, background_calculation_frame_chunk_height],
+                                                frames_to_skip = background_calculation_frames_to_skip, save_path = save_path, save_background = save_background, print_progress = print_progress)
+        else:
+            background = cv2.imread(background_path, cv2.IMREAD_GRAYSCALE).astype(np.uint8)
 
     # print(len(background), len(background[0]), len(frame), len(frame[0]))
     video_n_frames = get_total_frame_number_from_video(video_path)
     frame_size = get_frame_size_from_video(video_path)
+
+    if background.shape != frame_size:
+        print('Error! Background shape does not match frame shape. Recalculating background...')
+        background = calculate_background(video_path, method = background_calculation_method, chunk_size = [background_calculation_frame_chunk_width, background_calculation_frame_chunk_height],
+                                            frames_to_skip = background_calculation_frames_to_skip, save_path = save_path, save_background = save_background, print_progress = print_progress)
 
     # Get the fps.
     if video_fps is None:
@@ -1060,7 +1080,8 @@ def track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes,
     if tracking_method == 'free_swimming':
         # Iterate through each frame.
         for n in range(n_frames):
-            print('Tracking video. Processing frame number: {0} / {1}.'.format(n + 1, n_frames), end = '\r')
+            if print_progress:
+                print('Tracking video. Processing frame number: {0} / {1}.'.format(n + 1, n_frames), end = '\r')
             # Load a frame into memory.
             success, original_frame = capture.read()
             # Checks if the frame was loaded successfully.
@@ -1192,11 +1213,11 @@ def track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes,
                                 # Draw a circle arround the first eye coordinates.
                                 original_frame = cv2.circle(original_frame, (first_eye_coords[1], first_eye_coords[0]), 1, colours[-3], -1)
                                 # Draw a line representing the first eye angle.
-                                original_frame = cv2.line(original_frame, (first_eye_coords[1], first_eye_coords[0]), (int(round(first_eye_coords[1] + (line_length * np.cos(first_eye_angle)))), int(round(first_eye_coords[0] + (line_length * np.sin(first_eye_angle))))), colours[-3], 1)
+                                original_frame = cv2.line(original_frame, (first_eye_coords[1], first_eye_coords[0]), (int(round(first_eye_coords[1] + (eyes_line_length * np.cos(first_eye_angle)))), int(round(first_eye_coords[0] + (eyes_line_length * np.sin(first_eye_angle))))), colours[-3], 1)
                                 # Draw a circle around the second eye coordinates.
                                 original_frame = cv2.circle(original_frame, (second_eye_coords[1], second_eye_coords[0]), 1, colours[-2], - 1)
                                 # Draw a line representing the second eye angle.
-                                original_frame = cv2.line(original_frame, (second_eye_coords[1], second_eye_coords[0]), (int(round(second_eye_coords[1] + (line_length * np.cos(second_eye_angle)))), int(round(second_eye_coords[0] + (line_length * np.sin(second_eye_angle))))), colours[-2], 1)
+                                original_frame = cv2.line(original_frame, (second_eye_coords[1], second_eye_coords[0]), (int(round(second_eye_coords[1] + (eyes_line_length * np.cos(second_eye_angle)))), int(round(second_eye_coords[0] + (eyes_line_length * np.sin(second_eye_angle))))), colours[-2], 1)
                             else:
                                 # Draw a circle arround the first eye coordinates.
                                 original_frame = cv2.circle(original_frame, (first_eye_coords[1], first_eye_coords[0]), 1, colours[-3], -1)
@@ -1245,7 +1266,8 @@ def track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes,
     elif tracking_method == 'head_fixed':
         # Iterate through each frame.
         for n in range(n_frames):
-            print('Tracking video. Processing frame number: {0} / {1}.'.format(n + 1, n_frames), end = '\r')
+            if print_progress:
+                print('Tracking video. Processing frame number: {0} / {1}.'.format(n + 1, n_frames), end = '\r')
             # Load a frame into memory.
             success, original_frame = capture.read()
             # Checks if the frame was loaded successfully.
@@ -1431,7 +1453,8 @@ def track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes,
                     # Write the new frame that contains the annotated frame with tracked points to a new video.
                     writer.write(original_frame)
 
-    print('Tracking video. Processing frame number: {0} / {1}.'.format(n + 1, n_frames))
+    if print_progress:
+        print('Tracking video. Processing frame number: {0} / {1}.'.format(n + 1, n_frames))
     # Unload the video and writer from memory.
     capture.release()
     if save_video:
@@ -1461,4 +1484,5 @@ def track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes,
     # Save the results to a npz file.
     np.save(data_path, results)
 
-    print('Total processing time: {0} seconds.'.format(time.time() - t0))
+    if print_progress:
+        print('Total processing time: {0} seconds.'.format(time.time() - t0))
