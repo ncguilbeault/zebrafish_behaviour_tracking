@@ -764,7 +764,7 @@ def track_tail_in_frame(frame, background, success, n_tail_points, dist_tail_poi
     except:
         return None
 
-def track_tail_in_video_with_multiprocessing(video_path, colours, n_tail_points, dist_tail_points, dist_eyes, dist_swim_bladder, init_frame_batch_size = 50, init_starting_frame = 0, save_path = None, background_path = None, save_background = False, line_length = 0, video_fps = None, n_frames = None, pixel_threshold = 100, frame_change_threshold = 10):
+def track_tail_in_video_with_multiprocessing(video_path, colours, n_tail_points, dist_tail_points, dist_eyes, dist_swim_bladder, init_frame_batch_size = 50, init_starting_frame = 0, save_path = None, background_path = None, save_background = False, line_length = 0, video_fps = None, n_frames = 'All', pixel_threshold = 100, frame_change_threshold = 10):
 
     t0 = time.time()
 
@@ -779,7 +779,7 @@ def track_tail_in_video_with_multiprocessing(video_path, colours, n_tail_points,
     frame_batch_size = init_frame_batch_size
 
     # Get the total number of frames.
-    if n_frames is None:
+    if n_frames == 'All' or not isinstance(n_frames, int):
         n_frames = video_n_frames
 
     if n_frames > video_n_frames:
