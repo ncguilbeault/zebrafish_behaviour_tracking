@@ -290,7 +290,7 @@ class TrackingContent(QMainWindow):
             self.loaded_videos_listbox_size = (1020, 290)
             self.loaded_videos_button_size = (333.33, 50)
             self.loaded_videos_button_size_2 = (505, 50)
-            self.loaded_videos_button_3_size = (247.5, 50)
+            self.loaded_videos_button_size_3 = (247.5, 50)
             self.descriptors_window_size = (1060, 450)
             self.descriptors_x_offset = 10
             self.descriptors_y_offset = 60
@@ -2520,8 +2520,8 @@ class TrackingContent(QMainWindow):
     def check_tracking_n_frames_textbox(self):
         if self.tracking_n_frames_textbox.text().isdigit():
             self.n_frames = int(self.tracking_n_frames_textbox.text())
-            if self.preview_tracking_results:
-                self.trigger_update_preview()
+        elif self.tracking_n_frames_textbox.text() == 'All':
+            self.n_frames = self.tracking_n_frames_textbox.text()
         else:
             self.tracking_n_frames_textbox.setText(str(self.n_frames))
     def check_tracking_line_length_textbox(self):
@@ -2786,7 +2786,7 @@ class TrackingContent(QMainWindow):
         if self.track_video_progress_window is None:
             if self.video_path:
                 self.trigger_track_video()
-        elif not self.track_video_progress_window.isRunning():
+        elif not self.track_video_progress_window.track_video_thread.isRunning():
             if self.video_path:
                 self.trigger_track_video()
     def check_track_all_videos_button(self):
@@ -2924,7 +2924,7 @@ class TrackVideoProgressWindow(QMainWindow):
         self.processing_video_label.setText('Processing Video: {0}'.format(self.video_path))
 
     def update_progress_bar_range(self):
-        if self.n_frames is None:
+        if self.n_frames == 'All':
             self.current_tracking_progress_bar.setMaximum(self.video_n_frames)
         else:
             # if self.n_frames + self.starting_frame < self.video_n_frames:
@@ -3232,7 +3232,7 @@ class TrackVideoThread(QThread):
             video_fps = get_fps_from_video(video_path)
 
         # Get the total number of frames.
-        if n_frames is None:
+        if n_frames == 'All':
             n_frames = video_n_frames
 
         if n_frames > video_n_frames:
@@ -3349,7 +3349,7 @@ class TrackVideoThread(QThread):
                                 # Find the midpoint of the line that connects both eyes.
                                 heading_coords = [(first_eye_coords[0] + second_eye_coords[0]) / 2, (first_eye_coords[1] + second_eye_coords[1]) / 2]
                                 # Find the swim bladder coordinates by finding the next brightest coordinates that lie on a circle around the heading coordinates with a radius equal to the distance between the eyes and the swim bladder.
-                                swim_bladder_coords = calculate_next_coords(heading_coords, dist_swim_bladder, frame, n_angles = 100, range_angles = 2 * np.pi, tail_calculation = False)
+                                swim_bladder_coords = ut.calculate_next_coords(heading_coords, dist_swim_bladder, frame, n_angles = 100, range_angles = 2 * np.pi, tail_calculation = False)
                                 # Find the body coordinates by finding the center of the triangle that connects the eyes and swim bladder.
                                 body_coords = [int(round((swim_bladder_coords[0] + first_eye_coords[0] + second_eye_coords[0]) / 3)), int(round((swim_bladder_coords[1] + first_eye_coords[1] + second_eye_coords[1]) / 3))]
                                 # Calculate the heading angle as the angle between the body coordinates and the heading coordinates.
@@ -3824,84 +3824,13 @@ class TrackAllVideosProgressWindow(QMainWindow):
         self.track_all_videos_thread = TrackAllVideosThread()
         self.track_all_videos_thread.loaded_videos_and_parameters_dict = self.loaded_videos_and_parameters_dict
         self.track_all_videos_thread.current_video_process_signal.connect(self.update_processing_video_label)
+        self.track_all_videos_thread.current_status_signal.connect(self.update_current_status_label)
         self.track_all_videos_thread.total_time_elapsed_signal.connect(self.update_total_time_elapsed_label)
         self.track_all_videos_thread.processing_video_number_signal.connect(self.update_processing_video_number_label)
         self.track_all_videos_thread.progress_signal.connect(self.update_progress_bar_value)
-        self.track_all_videos_thread.tracking_finished_signal.connect(self.trigger_reset_progress_bar)
-        self.track_all_videos_thread.tracking_finished_signal.connect(self.close)
+        self.track_all_videos_thread.current_tracking_finished_signal.connect(self.trigger_reset_progress_bar)
+        self.track_all_videos_thread.total_tracking_finished_signal.connect(self.close)
         self.track_all_videos_thread.start()
-
-        # self.total_backgrounds_to_calculate = np.sum([0 if self.loaded_videos_and_parameters_dict[key]['background'] is None else 1 for key in self.loaded_videos_and_parameters_dict.keys()])
-        # self.total_frames_to_process = np.sum([self.loaded_videos_and_parameters_dict[key]['tracking_parameters']['n_frames'] for key in self.loaded_videos_and_parameters_dict.keys()])
-        # all_videos_to_track = list(self.loaded_videos_and_parameters_dict.keys())
-        # print(self.loaded_videos_and_parameters_dict)
-
-        # for i in range(len(all_videos_to_track)):
-        #     self.i = i
-        #     self.update_processing_video_number_label()
-        #
-        #     self.video_path = all_videos_to_track[i]
-            # print(self.loaded_videos_and_parameters_dict[self.video_path])
-            # self.background = self.loaded_videos_and_parameters_dict[self.video_path]['background']
-            # self.colours = self.loaded_videos_and_parameters_dict[self.video_path]['colour_parameters']
-            # self.background_calculation_method = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['background_calculation_method']
-            # self.background_calculation_frame_chunk_width = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['background_calculation_frame_chunk_width']
-            # self.background_calculation_frame_chunk_height = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['background_calculation_frame_chunk_height']
-            # self.background_calculation_frames_to_skip = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['background_calculation_frames_to_skip']
-            # self.tracking_method = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['tracking_method']
-            # self.initial_pixel_search = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['initial_pixel_search']
-            # self.n_tail_points = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['n_tail_points']
-            # self.dist_tail_points = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['dist_tail_points']
-            # self.dist_eyes = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['dist_eyes']
-            # self.dist_swim_bladder = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['dist_swim_bladder']
-            # self.range_angles = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['range_angles']
-            # self.median_blur = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['median_blur']
-            # self.pixel_threshold = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['pixel_threshold']
-            # self.frame_change_threshold = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['frame_change_threshold']
-            # self.heading_line_length = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['heading_line_length']
-            # self.extended_eyes_calculation = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['extended_eyes_calculation']
-            # self.eyes_threshold = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['eyes_threshold']
-            # self.invert_threshold = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['invert_threshold']
-            # self.save_video = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['save_video']
-            # self.starting_frame = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['starting_frame']
-            # self.n_frames = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['n_frames']
-            # self.save_path = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['save_path']
-            # self.video_fps = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['video_fps']
-            #
-            # self.track_video_thread = TrackVideoThread()
-            # self.track_video_thread.video_path = self.video_path
-            # self.track_video_thread.background = self.background
-            # self.track_video_thread.colours = self.colours
-            # self.track_video_thread.background_calculation_method = self.background_calculation_method
-            # self.track_video_thread.background_calculation_frame_chunk_width = self.background_calculation_frame_chunk_width
-            # self.track_video_thread.background_calculation_frame_chunk_height = self.background_calculation_frame_chunk_height
-            # self.track_video_thread.background_calculation_frames_to_skip = self.background_calculation_frames_to_skip
-            # self.track_video_thread.save_background = self.save_background
-            # self.track_video_thread.tracking_method = self.tracking_method
-            # self.track_video_thread.initial_pixel_search = self.initial_pixel_search
-            # self.track_video_thread.n_tail_points = self.n_tail_points
-            # self.track_video_thread.dist_tail_points = self.dist_tail_points
-            # self.track_video_thread.dist_eyes = self.dist_eyes
-            # self.track_video_thread.dist_swim_bladder = self.dist_swim_bladder
-            # self.track_video_thread.range_angles = self.range_angles
-            # self.track_video_thread.median_blur = self.median_blur
-            # self.track_video_thread.pixel_threshold = self.pixel_threshold
-            # self.track_video_thread.frame_change_threshold = self.frame_change_threshold
-            # self.track_video_thread.heading_line_length = self.heading_line_length
-            # self.track_video_thread.extended_eyes_calculation = self.extended_eyes_calculation
-            # self.track_video_thread.eyes_threshold = self.eyes_threshold
-            # self.track_video_thread.invert_threshold = self.invert_threshold
-            # self.track_video_thread.save_video = self.save_video
-            # self.track_video_thread.starting_frame = self.starting_frame
-            # self.track_video_thread.n_frames = self.n_frames
-            # self.track_video_thread.save_path = self.save_path
-            # self.track_video_thread.video_fps = self.video_fps
-            # self.track_video_thread.start()
-            # self.track_video_thread.progress_signal.connect(self.update_total_tracking_progress_bar_value)
-            # self.track_video_thread.current_status_signal.connect(self.update_current_status_label)
-            # self.track_video_thread.total_time_elapsed_signal.connect(self.update_total_time_elapsed_label)
-            # self.track_video_thread.background_calculation_finished_signal.connect(self.trigger_reset_progress_bar)
-            # self.track_video_thread.tracking_finished_signal.connect(self.trigger_reset_progress_bar)
 
     def trigger_reset_progress_bar(self):
         self.current_tracking_progress_bar.reset()
@@ -3916,7 +3845,8 @@ class TrackAllVideosProgressWindow(QMainWindow):
 class TrackAllVideosThread(QThread):
 
     background_calculation_finished_signal = pyqtSignal(bool)
-    tracking_finished_signal = pyqtSignal(bool)
+    total_tracking_finished_signal = pyqtSignal(bool)
+    current_tracking_finished_signal = pyqtSignal(bool)
     progress_signal = pyqtSignal(float, str)
     current_video_process_signal = pyqtSignal(str)
     current_status_signal = pyqtSignal(str)
@@ -4029,17 +3959,18 @@ class TrackAllVideosThread(QThread):
             self.video_fps = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['video_fps']
             self.save_background = True
 
-        if self.background is None:
-            self.background = self.calculate_background(self.video_path, self.background_calculation_method, [self.background_calculation_frame_chunk_width, self.background_calculation_frame_chunk_height],
-                            self.background_calculation_frames_to_skip, self.save_path, self.save_background)
+            if self.background is None:
+                self.background = self.calculate_background(self.video_path, self.background_calculation_method, [self.background_calculation_frame_chunk_width, self.background_calculation_frame_chunk_height],
+                                self.background_calculation_frames_to_skip, self.save_path, self.save_background)
 
-        self.track_video(self.video_path, self.background, self.colours, self.tracking_method, self.initial_pixel_search, self.n_tail_points, self.dist_tail_points, self.dist_eyes,
-                        self.dist_swim_bladder, self.range_angles, self.median_blur, self.pixel_threshold, self.frame_change_threshold, self.heading_line_length, self.extended_eyes_calculation, self.eyes_threshold,
-                        self.invert_threshold, self.save_video, self.starting_frame, self.n_frames, self.save_path, self.video_fps)
+            self.track_video(self.video_path, self.background, self.colours, self.tracking_method, self.initial_pixel_search, self.n_tail_points, self.dist_tail_points, self.dist_eyes,
+                            self.dist_swim_bladder, self.range_angles, self.median_blur, self.pixel_threshold, self.frame_change_threshold, self.heading_line_length, self.extended_eyes_calculation, self.eyes_threshold,
+                            self.invert_threshold, self.save_video, self.starting_frame, self.n_frames, self.save_path, self.video_fps)
+
+            self.current_tracking_finished_signal.emit(True)
 
         time.sleep(0.5)
-
-        self.tracking_finished_signal.emit(True)
+        self.total_tracking_finished_signal.emit(True)
 
     def calculate_background(self, video_path, method, chunk_size, frames_to_skip, save_path, save_background):
         # Check arguments.
@@ -4189,7 +4120,7 @@ class TrackAllVideosThread(QThread):
             video_fps = get_fps_from_video(video_path)
 
         # Get the total number of frames.
-        if n_frames is None:
+        if n_frames == 'All':
             n_frames = video_n_frames
 
         if n_frames > video_n_frames:
@@ -4306,7 +4237,7 @@ class TrackAllVideosThread(QThread):
                                 # Find the midpoint of the line that connects both eyes.
                                 heading_coords = [(first_eye_coords[0] + second_eye_coords[0]) / 2, (first_eye_coords[1] + second_eye_coords[1]) / 2]
                                 # Find the swim bladder coordinates by finding the next brightest coordinates that lie on a circle around the heading coordinates with a radius equal to the distance between the eyes and the swim bladder.
-                                swim_bladder_coords = calculate_next_coords(heading_coords, dist_swim_bladder, frame, n_angles = 100, range_angles = 2 * np.pi, tail_calculation = False)
+                                swim_bladder_coords = ut.calculate_next_coords(heading_coords, dist_swim_bladder, frame, n_angles = 100, range_angles = 2 * np.pi, tail_calculation = False)
                                 # Find the body coordinates by finding the center of the triangle that connects the eyes and swim bladder.
                                 body_coords = [int(round((swim_bladder_coords[0] + first_eye_coords[0] + second_eye_coords[0]) / 3)), int(round((swim_bladder_coords[1] + first_eye_coords[1] + second_eye_coords[1]) / 3))]
                                 # Calculate the heading angle as the angle between the body coordinates and the heading coordinates.
