@@ -2871,6 +2871,7 @@ class TrackVideoProgressWindow(QMainWindow):
         self.heading_line_length = None
         self.extended_eyes_calculation = None
         self.eyes_threshold = None
+        self.eyes_line_length = None
         self.invert_threshold = None
         self.save_video = None
         self.starting_frame = None
@@ -2999,6 +3000,7 @@ class TrackVideoProgressWindow(QMainWindow):
         self.track_video_thread.heading_line_length = self.heading_line_length
         self.track_video_thread.extended_eyes_calculation = self.extended_eyes_calculation
         self.track_video_thread.eyes_threshold = self.eyes_threshold
+        self.track_video_thread.eyes_line_length = self.eyes_line_length
         self.track_video_thread.invert_threshold = self.invert_threshold
         self.track_video_thread.save_video = self.save_video
         self.track_video_thread.starting_frame = self.starting_frame
@@ -3098,7 +3100,7 @@ class TrackVideoThread(QThread):
 
         self.track_video(self.video_path, self.background, self.colours, self.tracking_method, self.initial_pixel_search, self.n_tail_points, self.dist_tail_points, self.dist_eyes,
                         self.dist_swim_bladder, self.range_angles, self.median_blur, self.pixel_threshold, self.frame_change_threshold, self.heading_line_length, self.extended_eyes_calculation, self.eyes_threshold,
-                        self.invert_threshold, self.save_video, self.starting_frame, self.n_frames, self.save_path, self.video_fps)
+                        self.eyes_line_length, self.invert_threshold, self.save_video, self.starting_frame, self.n_frames, self.save_path, self.video_fps)
 
     def calculate_background(self, video_path, method, chunk_size, frames_to_skip, save_path, save_background):
         # Check arguments.
@@ -3225,7 +3227,7 @@ class TrackVideoThread(QThread):
 
     def track_video(self, video_path, background, colours, tracking_method, initial_pixel_search, n_tail_points, dist_tail_points, dist_eyes,
                     dist_swim_bladder, range_angles, median_blur, pixel_threshold, frame_change_threshold, heading_line_length, extended_eyes_calculation, eyes_threshold,
-                    invert_threshold, save_video, starting_frame, n_frames, save_path, video_fps):
+                    eyes_line_length, invert_threshold, save_video, starting_frame, n_frames, save_path, video_fps):
 
         self.current_status = 'Tracking Video'
         colours = [[colours[i][2], colours[i][1], colours[i][0]] for i in range(len(colours))]
