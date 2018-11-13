@@ -123,7 +123,10 @@ class MainWindow(QMainWindow):
         if self.main_tab.tracking_window.tracking_content.track_video_progress_window is not None:
             if self.main_tab.tracking_window.tracking_content.track_video_progress_window.isVisible():
                 self.main_tab.tracking_window.tracking_content.track_video_progress_window.close()
-            event.accept()
+        if self.main_tab.tracking_window.tracking_content.track_all_videos_progress_window is not None:
+            if self.main_tab.tracking_window.tracking_content.track_all_videos_progress_window.isVisible():
+                self.main_tab.tracking_window.tracking_content.track_all_videos_progress_window.close()
+        event.accept()
 
 class MainTab(QTabWidget):
 
@@ -2361,7 +2364,6 @@ class TrackingContent(QMainWindow):
             self.track_selected_video_button.setEnabled(False)
         if self.track_all_videos_button.isEnabled():
             self.track_all_videos_button.setEnabled(False)
-        # print(self.loaded_videos_and_parameters_dict)
 
         if self.loaded_videos_and_parameters_dict[self.video_path]['descriptors'] is None:
             self.descriptors_dict['video_path_basename'] = self.video_path_basename
@@ -2759,7 +2761,6 @@ class TrackingContent(QMainWindow):
         self.trigger_unload_all_tracking()
     def check_loaded_videos_listbox_item_clicked(self):
         self.video_path = self.loaded_videos_listbox.currentItem().text()
-        # print(self.loaded_videos_listbox.currentItem().text())
         self.get_video_attributes()
         self.update_descriptors()
         success, self.frame = ut.load_frame_into_memory(self.video_path, self.frame_number - 1)
@@ -2799,7 +2800,6 @@ class TrackingContent(QMainWindow):
     # Defining Event Functions
     def event_preview_frame_window_label_mouse_clicked(self, event):
         self.initial_mouse_position = (event.x(), event.y())
-        # print(self.initial_mouse_position)
         if self.magnify_frame:
             if qApp.mouseButtons() & Qt.LeftButton:
                 self.trigger_update_preview(magnify = True)
@@ -2816,7 +2816,6 @@ class TrackingContent(QMainWindow):
                 self.preview_frame_window.verticalScrollBar().setValue(new_y)
         event.accept()
     def event_preview_frame_window_label_mouse_moved(self, event):
-        # print(event.x(), event.y())
         if self.pan_frame:
             if qApp.mouseButtons() & Qt.LeftButton:
                 new_frame_pos = (event.x() - self.initial_mouse_position[0], event.y() - self.initial_mouse_position[1])
@@ -2938,10 +2937,26 @@ class TrackVideoProgressWindow(QMainWindow):
 
     def update_total_time_elapsed_label(self, value):
         elapsed_time = int(round(value, 0))
-        if elapsed_time == 1:
-            self.total_time_elapsed_label.setText('Total Time Elapsed: {0} second'.format(elapsed_time))
-        else:
-            self.total_time_elapsed_label.setText('Total Time Elapsed: {0} seconds'.format(elapsed_time))
+        hours, minutes, seconds = ut.convert_total_seconds_to_hours_minutes_seconds(elapsed_time)
+        elapsed_time_message = 'Total Time Elapsed: '
+        if hours != 0:
+            if hours == 1:
+                elapsed_time_message += '{0} hour '.format(hours)
+            else:
+                elapsed_time_message += '{0} hours '.format(hours)
+        if minutes != 0:
+            if minutes == 1:
+                elapsed_time_message += '{0} minute '.format(minutes)
+            else:
+                elapsed_time_message += '{0} minutes '.format(minutes)
+        if seconds != 0:
+            if seconds == 1:
+                elapsed_time_message += '{0} second '.format(seconds)
+            else:
+                elapsed_time_message += '{0} seconds '.format(seconds)
+        if hours != 0 or minutes != 0 or seconds != 0:
+            elapsed_time_message = elapsed_time_message[:-1] + '.'
+        self.total_time_elapsed_label.setText(elapsed_time_message)
 
     def update_total_tracking_progress_bar_range(self):
         if self.background is None and self.background_calculation_method == 'mode':
@@ -3005,6 +3020,7 @@ class TrackVideoProgressWindow(QMainWindow):
         self.track_video_progress_finished.emit(True)
         if self.track_video_thread is not None:
             if self.track_video_thread.isRunning():
+                self.track_video_thread.timer_thread.terminate()
                 self.track_video_thread.terminate()
         event.accept()
 
@@ -3223,7 +3239,6 @@ class TrackVideoThread(QThread):
         if save_path == None:
             save_path = os.path.dirname(video_path)
 
-        # print(len(background), len(background[0]), len(frame), len(frame[0]))
         video_n_frames = ut.get_total_frame_number_from_video(video_path)
         frame_size = ut.get_frame_size_from_video(video_path)
 
@@ -3799,7 +3814,6 @@ class TrackAllVideosProgressWindow(QMainWindow):
     def update_total_time_elapsed_label(self, value):
         elapsed_time = int(round(value, 0))
         hours, minutes, seconds = ut.convert_total_seconds_to_hours_minutes_seconds(elapsed_time)
-        print(elapsed_time, hours, minutes, seconds)
         elapsed_time_message = 'Total Time Elapsed: '
         if hours != 0:
             if hours == 1:
@@ -3860,6 +3874,7 @@ class TrackAllVideosProgressWindow(QMainWindow):
         self.track_all_videos_progress_finished.emit(True)
         if self.track_all_videos_thread is not None:
             if self.track_all_videos_thread.isRunning():
+                self.track_all_videos_thread.timer_thread.terminate()
                 self.track_all_videos_thread.terminate()
         event.accept()
 
@@ -4687,14 +4702,29 @@ class CalculateBackgroundProgressWindow(QMainWindow):
 
     def update_total_time_elapsed_label(self, value):
         elapsed_time = int(round(value, 0))
-        if elapsed_time == 1:
-            self.total_time_elapsed_label.setText('Total Time Elapsed: {0} second'.format(elapsed_time))
-        else:
-            self.total_time_elapsed_label.setText('Total Time Elapsed: {0} seconds'.format(elapsed_time))
+        hours, minutes, seconds = ut.convert_total_seconds_to_hours_minutes_seconds(elapsed_time)
+        elapsed_time_message = 'Total Time Elapsed: '
+        if hours != 0:
+            if hours == 1:
+                elapsed_time_message += '{0} hour '.format(hours)
+            else:
+                elapsed_time_message += '{0} hours '.format(hours)
+        if minutes != 0:
+            if minutes == 1:
+                elapsed_time_message += '{0} minute '.format(minutes)
+            else:
+                elapsed_time_message += '{0} minutes '.format(minutes)
+        if seconds != 0:
+            if seconds == 1:
+                elapsed_time_message += '{0} second '.format(seconds)
+            else:
+                elapsed_time_message += '{0} seconds '.format(seconds)
+        if hours != 0 or minutes != 0 or seconds != 0:
+            elapsed_time_message = elapsed_time_message[:-1] + '.'
+        self.total_time_elapsed_label.setText(elapsed_time_message)
 
     def update_background_calculation_completed_signal(self):
         self.background = self.calculate_background_thread.background
-        # print(self.background)
         self.background_calculation_completed_signal.emit(True)
         self.close()
 
@@ -4715,10 +4745,11 @@ class CalculateBackgroundProgressWindow(QMainWindow):
 
     def closeEvent(self, event):
         if self.calculate_background_thread is not None:
-            if self.calculate_background_thread.timer_thread is not None:
-                if self.calculate_background_thread.timer_thread.isRunning():
-                    self.calculate_background_thread.timer_thread.terminate()
+            # if self.calculate_background_thread.timer_thread is not None:
+            #     if self.calculate_background_thread.timer_thread.isRunning():
+            #         self.calculate_background_thread.timer_thread.terminate()
             if self.calculate_background_thread.isRunning():
+                self.calculate_background_thread.timer_thread.terminate()
                 self.calculate_background_thread.terminate()
         event.accept()
 
