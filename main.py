@@ -3699,7 +3699,7 @@ class TrackAllVideosProgressWindow(QMainWindow):
         self.add_total_time_elapsed_label()
         self.add_cancel_tracking_button()
         self.setWindowTitle('Multiple Video Tracking in Progress')
-        self.setFixedSize(500, 300)
+        self.setFixedSize(480, 300)
 
     def initialize_class_variables(self):
         self.loaded_videos_and_parameters_dict = None
@@ -3731,11 +3731,12 @@ class TrackAllVideosProgressWindow(QMainWindow):
         self.n_frames = None
         self.save_path = None
         self.video_fps = None
-        self.track_video_thread = None
+        self.track_all_videos_thread = None
 
         self.video_n_frames = None
 
         self.i = None
+        self.total_progress = None
 
     def add_processing_video_label(self):
         self.processing_video_label = QLabel(self)
@@ -3786,10 +3787,10 @@ class TrackAllVideosProgressWindow(QMainWindow):
     def update_processing_video_number_label(self, value):
         self.processing_video_number_label.setText('Processing Video Number: {0} / {1}'.format(value + 1, len(self.loaded_videos_and_parameters_dict.keys())))
 
-    def update_progress_bar_range(self):
-        self.current_tracking_progress_bar.setMaximum(self.video_n_frames)
+    def update_current_progress_range(self, value):
+        self.current_tracking_progress_bar.setMaximum(value)
 
-    def update_progress_bar_value(self, value, current_status):
+    def update_current_progress_value(self, value):
         self.current_tracking_progress_bar.setValue(value)
 
     def update_current_status_label(self, value):
@@ -3797,18 +3798,34 @@ class TrackAllVideosProgressWindow(QMainWindow):
 
     def update_total_time_elapsed_label(self, value):
         elapsed_time = int(round(value, 0))
-        if elapsed_time == 1:
-            self.total_time_elapsed_label.setText('Total Time Elapsed: {0} second'.format(elapsed_time))
-        else:
-            self.total_time_elapsed_label.setText('Total Time Elapsed: {0} seconds'.format(elapsed_time))
+        hours, minutes, seconds = ut.convert_total_seconds_to_hours_minutes_seconds(elapsed_time)
+        print(elapsed_time, hours, minutes, seconds)
+        elapsed_time_message = 'Total Time Elapsed: '
+        if hours != 0:
+            if hours == 1:
+                elapsed_time_message += '{0} hour '.format(hours)
+            else:
+                elapsed_time_message += '{0} hours '.format(hours)
+        if minutes != 0:
+            if minutes == 1:
+                elapsed_time_message += '{0} minute '.format(minutes)
+            else:
+                elapsed_time_message += '{0} minutes '.format(minutes)
+        if seconds != 0:
+            if seconds == 1:
+                elapsed_time_message += '{0} second '.format(seconds)
+            else:
+                elapsed_time_message += '{0} seconds '.format(seconds)
+        if hours != 0 or minutes != 0 or seconds != 0:
+            elapsed_time_message = elapsed_time_message[:-1] + '.'
+        self.total_time_elapsed_label.setText(elapsed_time_message)
 
-    def update_total_tracking_progress_bar_range(self):
-        if self.background is None and self.background_calculation_method == 'mode':
-            self.total_tracking_progress_bar.setMaximum(self.video_n_frames * 5)
-        elif self.background is None:
-            self.total_tracking_progress_bar.setMaximum(self.video_n_frames * 10)
-        else:
-            self.total_tracking_progress_bar.setMaximum(self.video_n_frames)
+    def update_total_progress_value(self, value):
+        self.total_progress += value
+        self.total_tracking_progress_bar.setValue(self.total_progress)
+
+    def update_total_progress_range(self, value):
+        self.total_tracking_progress_bar.setMaximum(value)
 
     def update_total_tracking_progress_bar_value(self, value, current_status):
         if current_status == 'Calculating Background':
@@ -3821,13 +3838,17 @@ class TrackAllVideosProgressWindow(QMainWindow):
             self.total_tracking_progress_bar.setValue(value)
 
     def trigger_track_all_videos(self):
+        self.total_progress = 0
         self.track_all_videos_thread = TrackAllVideosThread()
         self.track_all_videos_thread.loaded_videos_and_parameters_dict = self.loaded_videos_and_parameters_dict
         self.track_all_videos_thread.current_video_process_signal.connect(self.update_processing_video_label)
         self.track_all_videos_thread.current_status_signal.connect(self.update_current_status_label)
         self.track_all_videos_thread.total_time_elapsed_signal.connect(self.update_total_time_elapsed_label)
         self.track_all_videos_thread.processing_video_number_signal.connect(self.update_processing_video_number_label)
-        self.track_all_videos_thread.progress_signal.connect(self.update_progress_bar_value)
+        self.track_all_videos_thread.current_progress_signal.connect(self.update_current_progress_value)
+        self.track_all_videos_thread.current_progress_range_signal.connect(self.update_current_progress_range)
+        self.track_all_videos_thread.total_progress_signal.connect(self.update_total_progress_value)
+        self.track_all_videos_thread.total_progress_range_signal.connect(self.update_total_progress_range)
         self.track_all_videos_thread.current_tracking_finished_signal.connect(self.trigger_reset_progress_bar)
         self.track_all_videos_thread.total_tracking_finished_signal.connect(self.close)
         self.track_all_videos_thread.start()
@@ -3837,9 +3858,9 @@ class TrackAllVideosProgressWindow(QMainWindow):
 
     def closeEvent(self, event):
         self.track_all_videos_progress_finished.emit(True)
-        if self.track_video_thread is not None:
-            if self.track_video_thread.isRunning():
-                self.track_video_thread.terminate()
+        if self.track_all_videos_thread is not None:
+            if self.track_all_videos_thread.isRunning():
+                self.track_all_videos_thread.terminate()
         event.accept()
 
 class TrackAllVideosThread(QThread):
@@ -3847,12 +3868,14 @@ class TrackAllVideosThread(QThread):
     background_calculation_finished_signal = pyqtSignal(bool)
     total_tracking_finished_signal = pyqtSignal(bool)
     current_tracking_finished_signal = pyqtSignal(bool)
-    progress_signal = pyqtSignal(float, str)
+    current_progress_signal = pyqtSignal(float)
+    total_progress_signal = pyqtSignal(float)
+    total_progress_range_signal = pyqtSignal(float)
     current_video_process_signal = pyqtSignal(str)
     current_status_signal = pyqtSignal(str)
     total_time_elapsed_signal = pyqtSignal(float)
     processing_video_number_signal = pyqtSignal(int)
-    new_progress_bar_range_signal = pyqtSignal(float)
+    current_progress_range_signal = pyqtSignal(float)
 
     def __init__(self):
         super(TrackAllVideosThread, self).__init__()
@@ -3894,6 +3917,7 @@ class TrackAllVideosThread(QThread):
         self.total_time_elapsed = None
         self.current_status = None
         self.i = None
+        self.total_progress_range = None
 
         self.timer_thread = None
 
@@ -3919,13 +3943,26 @@ class TrackAllVideosThread(QThread):
         self.timer_thread.time_signal.connect(self.update_current_status)
 
         all_videos_to_track = list(self.loaded_videos_and_parameters_dict.keys())
+        self.total_progress_range = 0
+
+        for i in range(len(all_videos_to_track)):
+            if self.loaded_videos_and_parameters_dict[all_videos_to_track[i]]['background'] is None:
+                if self.loaded_videos_and_parameters_dict[all_videos_to_track[i]]['tracking_parameters']['background_calculation_method'] == 'mode':
+                    self.total_progress_range += self.loaded_videos_and_parameters_dict[all_videos_to_track[i]]['descriptors']['video_n_frames'] * 10
+                else:
+                    self.total_progress_range += self.loaded_videos_and_parameters_dict[all_videos_to_track[i]]['descriptors']['video_n_frames']
+            if self.loaded_videos_and_parameters_dict[all_videos_to_track[i]]['tracking_parameters']['n_frames'] == 'All':
+                self.total_progress_range += self.loaded_videos_and_parameters_dict[all_videos_to_track[i]]['descriptors']['video_n_frames'] * 10
+            else:
+                self.total_progress_range += self.loaded_videos_and_parameters_dict[all_videos_to_track[i]]['tracking_parameters']['n_frames'] * 10
+
+        self.total_progress_range_signal.emit(self.total_progress_range)
 
         for i in range(len(all_videos_to_track)):
             self.i = i
             self.processing_video_number_signal.emit(self.i)
 
             self.video_n_frames = self.loaded_videos_and_parameters_dict[all_videos_to_track[i]]['descriptors']['video_n_frames']
-            self.new_progress_bar_range_signal.emit(self.video_n_frames)
 
             self.video_path = all_videos_to_track[i]
             self.current_video_process_signal.emit(self.video_path)
@@ -3959,9 +3996,16 @@ class TrackAllVideosThread(QThread):
             self.video_fps = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['video_fps']
             self.save_background = True
 
+            self.current_progress_range_signal.emit(self.video_n_frames)
+
             if self.background is None:
                 self.background = self.calculate_background(self.video_path, self.background_calculation_method, [self.background_calculation_frame_chunk_width, self.background_calculation_frame_chunk_height],
                                 self.background_calculation_frames_to_skip, self.save_path, self.save_background)
+
+            if self.n_frames == 'All':
+                self.current_progress_range_signal.emit(self.video_n_frames)
+            else:
+                self.current_progress_range_signal.emit(self.n_frames)
 
             self.track_video(self.video_path, self.background, self.colours, self.tracking_method, self.initial_pixel_search, self.n_tail_points, self.dist_tail_points, self.dist_eyes,
                             self.dist_swim_bladder, self.range_angles, self.median_blur, self.pixel_threshold, self.frame_change_threshold, self.heading_line_length, self.extended_eyes_calculation, self.eyes_threshold,
@@ -4019,7 +4063,8 @@ class TrackAllVideosThread(QThread):
                 for i in range(height_iterations):
                     for j in range(width_iterations):
                         for frame_num in range(video_n_frames):
-                            self.progress_signal.emit((frame_num + 1 + (j * video_n_frames) + (video_n_frames * width_iterations * i)) / (width_iterations * height_iterations * video_n_frames) * video_n_frames, self.current_status)
+                            self.current_progress_signal.emit((frame_num + 1 + (j * video_n_frames) + (video_n_frames * width_iterations * i)) / (width_iterations * height_iterations * video_n_frames) * video_n_frames)
+                            self.total_progress_signal.emit(10)
                             success, frame = capture.read()
                             if success:
                                 if frame_num % frames_to_skip == 0:
@@ -4053,7 +4098,8 @@ class TrackAllVideosThread(QThread):
             else:
                 # Iterate through each frame in the video.
                 for frame_num in range(video_n_frames):
-                    self.progress_signal.emit(frame_num + 1, self.current_status)
+                    self.current_progress_signal.emit(frame_num + 1)
+                    self.total_progress_signal.emit(1)
                     # Load frame into memory.
                     success, frame = capture.read()
                     # Check if frame was loaded successfully.
@@ -4163,7 +4209,8 @@ class TrackAllVideosThread(QThread):
         if tracking_method == 'free_swimming':
             # Iterate through each frame.
             for n in range(n_frames):
-                self.progress_signal.emit(n + 1, self.current_status)
+                self.current_progress_signal.emit(n + 1)
+                self.total_progress_signal.emit(10)
                 # Load a frame into memory.
                 success, original_frame = capture.read()
                 # Checks if the frame was loaded successfully.
@@ -4348,7 +4395,8 @@ class TrackAllVideosThread(QThread):
         elif tracking_method == 'head_fixed':
             # Iterate through each frame.
             for n in range(n_frames):
-                self.progress_signal.emit(n + 1, self.current_status)
+                self.current_progress_signal.emit(n + 1)
+                self.total_progress_signal.emit(10)
                 # Load a frame into memory.
                 success, original_frame = capture.read()
                 # Checks if the frame was loaded successfully.

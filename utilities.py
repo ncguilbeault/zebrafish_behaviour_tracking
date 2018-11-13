@@ -35,6 +35,12 @@ def get_video_format_from_video(video_path):
     capture.release()
     return video_format
 
+def convert_total_seconds_to_hours_minutes_seconds(total_seconds):
+    hours = int(total_seconds / 3600)
+    minutes = int((total_seconds - hours) / 60)
+    seconds = int(round(total_seconds - (hours * 3600) - (minutes * 60), 0))
+    return [hours, minutes, seconds]
+
 def calculate_background(video_path, method = 'brightest', save_path = None, save_background = False, chunk_size = [100, 100], frames_to_skip = 0, print_progress = True, emit_progress_signal = False):
 
     '''
