@@ -37,7 +37,7 @@ def get_video_format_from_video(video_path):
 
 def convert_total_seconds_to_hours_minutes_seconds(total_seconds):
     hours = int(total_seconds / 3600)
-    minutes = int((total_seconds - hours) / 60)
+    minutes = int(round((total_seconds - (hours * 3600)) / 60, 0))
     seconds = int(round(total_seconds - (hours * 3600) - (minutes * 60), 0))
     return [hours, minutes, seconds]
 
