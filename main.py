@@ -408,11 +408,11 @@ class TrackingContent(QMainWindow):
         self.range_angles = None
         self.loaded_videos_and_parameters_dict = {}
         self.tracking_parameters_dict = {}
+        self.descriptors_dict = {}
         self.track_all_videos_progress_window = None
         self.track_video_progress_window = None
         self.calculate_background_progress_window = None
         self.save_background = None
-        self.descriptors_dict = {}
 
     # Defining Get Functions
     def get_video_attributes(self):
@@ -534,14 +534,14 @@ class TrackingContent(QMainWindow):
         self.update_parameters_button.move(new_x, new_y)
         self.update_parameters_button.resize(new_width, new_height)
         self.update_parameters_button.setFont(self.font_loaded_videos_buttons)
-        # self.load_background_button.clicked.connect(self.load_background_button)
+        self.update_parameters_button.clicked.connect(self.check_update_parameters_button)
 
         self.reload_parameters_button = QPushButton('Reload Parameters', self)
         new_x = self.preview_frame_window_size[0] + ((self.main_window_x_offset + self.main_window_spacing + self.loaded_videos_x_offset + (3 * (self.loaded_videos_button_size_3[0] + self.loaded_videos_x_spacing))) / 2560) * self.main_window_width
         self.reload_parameters_button.move(new_x, new_y)
         self.reload_parameters_button.resize(new_width, new_height)
         self.reload_parameters_button.setFont(self.font_loaded_videos_buttons)
-        # self.load_background_button.clicked.connect(self.load_background_button)
+        self.reload_parameters_button.clicked.connect(self.check_reload_parameters_button)
 
         new_width = (self.loaded_videos_button_size_2[0] / 2560) * self.main_window_width
         new_height = (self.loaded_videos_button_size_2[1] / 1400) * self.main_window_height
@@ -1943,46 +1943,47 @@ class TrackingContent(QMainWindow):
             else:
                 self.update_preview_parameters(activate_preview_background = True)
     def trigger_open_video(self):
-        if self.video_path is not None and self.video_path != '':
-            self.descriptors_dict['video_path_basename'] = self.video_path_basename
-            self.descriptors_dict['video_path_folder'] = self.video_path_folder
-            self.descriptors_dict['video_n_frames'] = self.video_n_frames
-            self.descriptors_dict['video_fps'] = self.video_fps
-            self.descriptors_dict['video_frame_width'] = self.video_frame_width
-            self.descriptors_dict['video_frame_height'] = self.video_frame_height
-            self.descriptors_dict['background_path_basename'] = self.background_path_basename
-            self.descriptors_dict['save_path'] = self.save_path
-
-            self.tracking_parameters_dict['n_tail_points'] = self.n_tail_points
-            self.tracking_parameters_dict['dist_tail_points'] = self.dist_tail_points
-            self.tracking_parameters_dict['dist_eyes'] = self.dist_eyes
-            self.tracking_parameters_dict['dist_swim_bladder'] = self.dist_swim_bladder
-            self.tracking_parameters_dict['tracking_method'] = self.tracking_method
-            self.tracking_parameters_dict['save_video'] = self.save_video
-            self.tracking_parameters_dict['extended_eyes_calculation'] = self.extended_eyes_calculation
-            self.tracking_parameters_dict['n_frames'] = self.n_frames
-            self.tracking_parameters_dict['starting_frame'] = self.starting_frame
-            self.tracking_parameters_dict['median_blur'] = self.median_blur
-            self.tracking_parameters_dict['save_path'] = self.save_path
-            self.tracking_parameters_dict['background_path'] = self.background_path
-            self.tracking_parameters_dict['heading_line_length'] = self.heading_line_length
-            self.tracking_parameters_dict['video_fps'] = self.video_fps
-            self.tracking_parameters_dict['pixel_threshold'] = self.pixel_threshold
-            self.tracking_parameters_dict['frame_change_threshold'] = self.frame_change_threshold
-            self.tracking_parameters_dict['eyes_threshold'] = self.eyes_threshold
-            self.tracking_parameters_dict['initial_pixel_search'] = self.initial_pixel_search
-            self.tracking_parameters_dict['invert_threshold'] = self.invert_threshold
-            self.tracking_parameters_dict['range_angles'] = self.range_angles
-            self.tracking_parameters_dict['background_calculation_method'] = self.background_calculation_method
-            self.tracking_parameters_dict['background_calculation_frame_chunk_width'] = self.background_calculation_frame_chunk_width
-            self.tracking_parameters_dict['background_calculation_frame_chunk_height'] = self.background_calculation_frame_chunk_height
-            self.tracking_parameters_dict['background_calculation_frames_to_skip'] = self.background_calculation_frames_to_skip
-
-            self.loaded_videos_and_parameters_dict[self.video_path]['descriptors'] = self.descriptors_dict.copy()
-            self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters'] = self.tracking_parameters_dict.copy()
-            self.loaded_videos_and_parameters_dict[self.video_path]['colour_parameters'] = self.colours.copy()
-            if self.background is not None:
-                self.loaded_videos_and_parameters_dict[self.video_path]['background'] = self.background.copy()
+        self.trigger_update_parameters()
+        # if self.video_path is not None and self.video_path != '':
+            # self.descriptors_dict['video_path_basename'] = self.video_path_basename
+            # self.descriptors_dict['video_path_folder'] = self.video_path_folder
+            # self.descriptors_dict['video_n_frames'] = self.video_n_frames
+            # self.descriptors_dict['video_fps'] = self.video_fps
+            # self.descriptors_dict['video_frame_width'] = self.video_frame_width
+            # self.descriptors_dict['video_frame_height'] = self.video_frame_height
+            # self.descriptors_dict['background_path_basename'] = self.background_path_basename
+            # self.descriptors_dict['save_path'] = self.save_path
+            #
+            # self.tracking_parameters_dict['n_tail_points'] = self.n_tail_points
+            # self.tracking_parameters_dict['dist_tail_points'] = self.dist_tail_points
+            # self.tracking_parameters_dict['dist_eyes'] = self.dist_eyes
+            # self.tracking_parameters_dict['dist_swim_bladder'] = self.dist_swim_bladder
+            # self.tracking_parameters_dict['tracking_method'] = self.tracking_method
+            # self.tracking_parameters_dict['save_video'] = self.save_video
+            # self.tracking_parameters_dict['extended_eyes_calculation'] = self.extended_eyes_calculation
+            # self.tracking_parameters_dict['n_frames'] = self.n_frames
+            # self.tracking_parameters_dict['starting_frame'] = self.starting_frame
+            # self.tracking_parameters_dict['median_blur'] = self.median_blur
+            # self.tracking_parameters_dict['save_path'] = self.save_path
+            # self.tracking_parameters_dict['background_path'] = self.background_path
+            # self.tracking_parameters_dict['heading_line_length'] = self.heading_line_length
+            # self.tracking_parameters_dict['video_fps'] = self.video_fps
+            # self.tracking_parameters_dict['pixel_threshold'] = self.pixel_threshold
+            # self.tracking_parameters_dict['frame_change_threshold'] = self.frame_change_threshold
+            # self.tracking_parameters_dict['eyes_threshold'] = self.eyes_threshold
+            # self.tracking_parameters_dict['initial_pixel_search'] = self.initial_pixel_search
+            # self.tracking_parameters_dict['invert_threshold'] = self.invert_threshold
+            # self.tracking_parameters_dict['range_angles'] = self.range_angles
+            # self.tracking_parameters_dict['background_calculation_method'] = self.background_calculation_method
+            # self.tracking_parameters_dict['background_calculation_frame_chunk_width'] = self.background_calculation_frame_chunk_width
+            # self.tracking_parameters_dict['background_calculation_frame_chunk_height'] = self.background_calculation_frame_chunk_height
+            # self.tracking_parameters_dict['background_calculation_frames_to_skip'] = self.background_calculation_frames_to_skip
+            #
+            # self.loaded_videos_and_parameters_dict[self.video_path]['descriptors'] = self.descriptors_dict.copy()
+            # self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters'] = self.tracking_parameters_dict.copy()
+            # self.loaded_videos_and_parameters_dict[self.video_path]['colour_parameters'] = self.colours.copy()
+            # if self.background is not None:
+            #     self.loaded_videos_and_parameters_dict[self.video_path]['background'] = self.background.copy()
 
         self.background = None
         self.background_path = None
@@ -2015,6 +2016,7 @@ class TrackingContent(QMainWindow):
                     self.loaded_videos_listbox.setCurrentRow(self.loaded_videos_listbox.count() - 1)
                 else:
                     self.loaded_videos_listbox.setCurrentRow(list(self.loaded_videos_and_parameters_dict.keys()).index(self.video_path))
+            self.trigger_update_parameters()
             success, self.frame = ut.load_frame_into_memory(self.video_path, self.frame_number - 1)
             if success and self.frame is not None:
                 self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height)
@@ -2414,6 +2416,91 @@ class TrackingContent(QMainWindow):
         self.track_all_videos_progress_window.track_all_videos_progress_finished.connect(self.update_track_video_buttons)
         self.track_all_videos_progress_window.show()
         self.track_all_videos_progress_window.trigger_track_all_videos()
+    def trigger_update_parameters(self):
+        if self.video_path is not None and self.video_path != '':
+            self.descriptors_dict['video_path_basename'] = self.video_path_basename
+            self.descriptors_dict['video_path_folder'] = self.video_path_folder
+            self.descriptors_dict['video_n_frames'] = self.video_n_frames
+            self.descriptors_dict['video_fps'] = self.video_fps
+            self.descriptors_dict['video_frame_width'] = self.video_frame_width
+            self.descriptors_dict['video_frame_height'] = self.video_frame_height
+            self.descriptors_dict['background_path_basename'] = self.background_path_basename
+            self.descriptors_dict['save_path'] = self.save_path
+
+            self.tracking_parameters_dict['n_tail_points'] = self.n_tail_points
+            self.tracking_parameters_dict['dist_tail_points'] = self.dist_tail_points
+            self.tracking_parameters_dict['dist_eyes'] = self.dist_eyes
+            self.tracking_parameters_dict['dist_swim_bladder'] = self.dist_swim_bladder
+            self.tracking_parameters_dict['tracking_method'] = self.tracking_method
+            self.tracking_parameters_dict['save_video'] = self.save_video
+            self.tracking_parameters_dict['extended_eyes_calculation'] = self.extended_eyes_calculation
+            self.tracking_parameters_dict['n_frames'] = self.n_frames
+            self.tracking_parameters_dict['starting_frame'] = self.starting_frame
+            self.tracking_parameters_dict['median_blur'] = self.median_blur
+            self.tracking_parameters_dict['save_path'] = self.save_path
+            self.tracking_parameters_dict['background_path'] = self.background_path
+            self.tracking_parameters_dict['heading_line_length'] = self.heading_line_length
+            self.tracking_parameters_dict['video_fps'] = self.video_fps
+            self.tracking_parameters_dict['pixel_threshold'] = self.pixel_threshold
+            self.tracking_parameters_dict['frame_change_threshold'] = self.frame_change_threshold
+            self.tracking_parameters_dict['eyes_threshold'] = self.eyes_threshold
+            self.tracking_parameters_dict['initial_pixel_search'] = self.initial_pixel_search
+            self.tracking_parameters_dict['invert_threshold'] = self.invert_threshold
+            self.tracking_parameters_dict['range_angles'] = self.range_angles
+            self.tracking_parameters_dict['background_calculation_method'] = self.background_calculation_method
+            self.tracking_parameters_dict['background_calculation_frame_chunk_width'] = self.background_calculation_frame_chunk_width
+            self.tracking_parameters_dict['background_calculation_frame_chunk_height'] = self.background_calculation_frame_chunk_height
+            self.tracking_parameters_dict['background_calculation_frames_to_skip'] = self.background_calculation_frames_to_skip
+
+            self.loaded_videos_and_parameters_dict[self.video_path]['descriptors'] = self.descriptors_dict.copy()
+            self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters'] = self.tracking_parameters_dict.copy()
+            self.loaded_videos_and_parameters_dict[self.video_path]['colour_parameters'] = self.colours.copy()
+            if self.background is not None:
+                self.loaded_videos_and_parameters_dict[self.video_path]['background'] = self.background.copy()
+    def trigger_reload_parameters(self):
+        if self.video_path is not None and self.video_path != '':
+
+            self.descriptors_dict = self.loaded_videos_and_parameters_dict[self.video_path]['descriptors'].copy()
+            self.tracking_parameters_dict = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters'].copy()
+            self.colours = self.loaded_videos_and_parameters_dict[self.video_path]['colour_parameters'].copy()
+            self.update_colours()
+            self.background = self.loaded_videos_and_parameters_dict[self.video_path]['background'].copy()
+
+            self.video_path_basename = self.descriptors_dict['video_path_basename']
+            self.video_path_folder = self.descriptors_dict['video_path_folder']
+            self.video_n_frames = self.descriptors_dict['video_n_frames']
+            self.video_fps = self.descriptors_dict['video_fps']
+            self.video_frame_width = self.descriptors_dict['video_frame_width']
+            self.video_frame_height = self.descriptors_dict['video_frame_height']
+            self.background_path_basename = self.descriptors_dict['background_path_basename']
+            self.save_path = self.descriptors_dict['save_path']
+            self.update_descriptors()
+
+            self.n_tail_points = self.tracking_parameters_dict['n_tail_points']
+            self.dist_tail_points = self.tracking_parameters_dict['dist_tail_points']
+            self.dist_eyes = self.tracking_parameters_dict['dist_eyes']
+            self.dist_swim_bladder = self.tracking_parameters_dict['dist_swim_bladder']
+            self.tracking_method = self.tracking_parameters_dict['tracking_method']
+            self.save_video = self.tracking_parameters_dict['save_video']
+            self.extended_eyes_calculation = self.tracking_parameters_dict['extended_eyes_calculation']
+            self.n_frames = self.tracking_parameters_dict['n_frames']
+            self.starting_frame = self.tracking_parameters_dict['starting_frame']
+            self.median_blur = self.tracking_parameters_dict['median_blur']
+            self.save_path = self.tracking_parameters_dict['save_path']
+            self.background_path = self.tracking_parameters_dict['background_path']
+            self.heading_line_length = self.tracking_parameters_dict['heading_line_length']
+            self.video_fps = self.tracking_parameters_dict['video_fps']
+            self.pixel_threshold = self.tracking_parameters_dict['pixel_threshold']
+            self.frame_change_threshold = self.tracking_parameters_dict['frame_change_threshold']
+            self.eyes_threshold = self.tracking_parameters_dict['eyes_threshold']
+            self.initial_pixel_search = self.tracking_parameters_dict['initial_pixel_search']
+            self.invert_threshold = self.tracking_parameters_dict['invert_threshold']
+            self.range_angles = self.tracking_parameters_dict['range_angles']
+            self.background_calculation_method = self.tracking_parameters_dict['background_calculation_method']
+            self.background_calculation_frame_chunk_width = self.tracking_parameters_dict['background_calculation_frame_chunk_width']
+            self.background_calculation_frame_chunk_height = self.tracking_parameters_dict['background_calculation_frame_chunk_height']
+            self.background_calculation_frames_to_skip = self.tracking_parameters_dict['background_calculation_frames_to_skip']
+            self.update_tracking_parameters()
 
     # Defining Check Functions
     def check_preview_frame_number_textbox(self):
@@ -2796,6 +2883,10 @@ class TrackingContent(QMainWindow):
                 self.trigger_track_video()
             else:
                 self.trigger_track_all_videos()
+    def check_update_parameters_button(self):
+        self.trigger_update_parameters()
+    def check_reload_parameters_button(self):
+        self.trigger_reload_parameters()
 
     # Defining Event Functions
     def event_preview_frame_window_label_mouse_clicked(self, event):

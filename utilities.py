@@ -9,8 +9,6 @@ import multiprocessing as mp
 import time
 import scipy.stats as stats
 
-from PyQt5.QtCore import *
-
 def get_total_frame_number_from_video(video_path):
     capture = cv2.VideoCapture(video_path)
     total_frame_number = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -37,11 +35,11 @@ def get_video_format_from_video(video_path):
 
 def convert_total_seconds_to_hours_minutes_seconds(total_seconds):
     hours = int(total_seconds / 3600)
-    minutes = int(round((total_seconds - (hours * 3600)) / 60, 0))
-    seconds = int(round(total_seconds - (hours * 3600) - (minutes * 60), 0))
+    minutes = int((total_seconds - (hours * 3600)) / 60)
+    seconds = int(total_seconds - (hours * 3600) - (minutes * 60))
     return [hours, minutes, seconds]
 
-def calculate_background(video_path, method = 'brightest', save_path = None, save_background = False, chunk_size = [100, 100], frames_to_skip = 0, print_progress = True, emit_progress_signal = False):
+def calculate_background(video_path, method = 'brightest', save_path = None, save_background = False, chunk_size = [100, 100], frames_to_skip = 0, print_progress = True):
 
     '''
     Function that calculates the background of a video.
@@ -159,8 +157,6 @@ def calculate_background(video_path, method = 'brightest', save_path = None, sav
         else:
             # Iterate through each frame in the video.
             for frame_num in range(video_total_frames):
-                if emit_progress_signal:
-                    progress_signal.emit([frame_num + 1, video_total_frames])
                 if print_progress:
                     print('Calculating background. Processing frame number: {0}/{1}.'.format(frame_num + 1, video_total_frames), end = '\r')
                 # Load frame into memory.
@@ -954,7 +950,7 @@ def track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes,
                 eyes_threshold = None, line_length = 0, video_fps = None,
                 pixel_threshold = 100, frame_change_threshold = 10, convert_colours_from_RGB_to_BGR = False,
                 range_angles = 120, median_blur_value = 3, initial_pixel_search = 'brightest',
-                invert_threshold = False, eyes_line_length = 0, print_progress = True, emit_progress_signal = False):
+                invert_threshold = False, eyes_line_length = 0, print_progress = True):
     '''
     Tracks a video.
 
