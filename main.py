@@ -2207,7 +2207,7 @@ class TrackingContent(QMainWindow):
         self.track_video_progress_window.save_path = self.save_path
         self.track_video_progress_window.background_path = self.background_path
         self.track_video_progress_window.background = self.background
-        self.track_video_progress_window.line_length = self.heading_line_length
+        self.track_video_progress_window.heading_line_length = self.heading_line_length
         self.track_video_progress_window.video_fps = self.video_fps
         self.track_video_progress_window.pixel_threshold = self.pixel_threshold
         self.track_video_progress_window.frame_change_threshold = self.frame_change_threshold
@@ -5349,8 +5349,6 @@ class PlottingContent(QMainWindow):
         self.data_plot_window.move(new_x, new_y)
         self.data_plot_window.resize(new_width, new_height)
         self.data_plot_window.setFrameShape(QFrame.StyledPanel)
-        # self.data_plot_window.setFrameShadow(QFrame.Sunken)
-        # self.data_plot_window.setLineWidth(5)
 
     def update_preview_frame(self, frame, frame_width, frame_height, scaled_width = None, grayscale = False):
         if grayscale:
@@ -5381,8 +5379,8 @@ class PlottingContent(QMainWindow):
             self.data_plot_window.setWidget(self.data_plot)
         else:
             if self.data_plot is not None:
+                self.data_plot.update_plots(clear = True)
                 self.data_plot.deleteLater()
-                self.data_plot.setGeometry(0, 0, 0, 0)
                 self.data_plot = None
     def update_frame_window_slider(self, activate = False, inactivate = False):
         if activate:
@@ -5549,15 +5547,15 @@ class PlottingContent(QMainWindow):
             self.data_plot.update_plots()
             self.update_data_plot_window()
     def trigger_unload_all_plotting(self):
+        self.update_data_plot_window(clear = True)
         self.initialize_class_variables()
         self.update_preview_frame_window(clear = True)
+        self.update_preview_frame_number_textbox(inactivate = True)
         self.update_frame_window_slider(inactivate = True)
         self.update_video_time_textbox(inactivate = True)
-        self.update_update_preview_button(inactivate = True)
         self.update_frame_change_buttons(inactivate = True)
         self.update_video_playback_buttons(inactivate = True)
         self.update_frame_window_slider_position()
-        self.update_data_plot_window(clear = True)
     def trigger_pause_video(self):
         if self.video_playback_thread is not None:
             self.video_playback_thread.close()
@@ -5853,9 +5851,9 @@ class DataPlot(QMainWindow):
                 self.tail_angle_frames = np.append(self.tail_angle_frames, self.tail_angle_frames[i - 1] + 1)
                 self.tail_angle_frames = np.append(self.tail_angle_frames, self.tail_angle_frames[i - 1] + 2)
 
-        # for i in range(len(self.tail_angles)):
-        #     for j in self.tail_angle_frames:
-        #         self.tail_angles[i][j] = 0.0
+        for i in range(len(self.tail_angles)):
+            for j in self.tail_angle_frames:
+                self.tail_angles[i][j] = 0.0
         self.smoothed_tail_angles = [np.convolve(self.tail_angles[i], np.ones(self.smoothing_factor)/self.smoothing_factor, mode = 'same') for i in range(len(self.tail_angles))]
 
         j = 0
@@ -5910,25 +5908,31 @@ class DataPlot(QMainWindow):
 
         self.timepoints = np.linspace(0, self.video_n_frames / self.video_fps, self.video_n_frames)
 
-    def update_plots(self):
+    def update_plots(self, clear = False):
 
-        self.tail_angle_plot_axis = self.tail_angle_plot.figure.subplots()
-        [self.tail_angle_plot_axis.plot(self.timepoints, self.smoothed_tail_angles[i], color = self.colours[i], lw = 1) for i in range(len(self.smoothed_tail_angles))]
-        self.tail_angle_plot_axis.set_xlabel('Time (s)')
-        self.tail_angle_plot_axis.set_ylabel('Angle (radians)')
-        self.tail_angle_plot_axis.set_title('Tail Kinematics Over Time')
+        if not clear:
+            self.tail_angle_plot_axis = self.tail_angle_plot.figure.subplots()
+            [self.tail_angle_plot_axis.plot(self.timepoints, self.smoothed_tail_angles[i], color = self.colours[i], lw = 1) for i in range(len(self.smoothed_tail_angles))]
+            self.tail_angle_plot_axis.set_xlabel('Time (s)')
+            self.tail_angle_plot_axis.set_ylabel('Angle (radians)')
+            self.tail_angle_plot_axis.set_title('Tail Kinematics Over Time')
 
-        self.heading_angle_plot_axis = self.heading_angle_plot.figure.subplots()
-        self.heading_angle_plot_axis.plot(self.timepoints, self.smoothed_heading_angles, color = self.colours[-1], lw = 1)
-        self.heading_angle_plot_axis.set_xlabel('Time (s)')
-        self.heading_angle_plot_axis.set_ylabel('Angle (radians)')
-        self.heading_angle_plot_axis.set_title('Heading Angle Over Time')
+            self.heading_angle_plot_axis = self.heading_angle_plot.figure.subplots()
+            self.heading_angle_plot_axis.plot(self.timepoints, self.smoothed_heading_angles, color = self.colours[-1], lw = 1)
+            self.heading_angle_plot_axis.set_xlabel('Time (s)')
+            self.heading_angle_plot_axis.set_ylabel('Angle (radians)')
+            self.heading_angle_plot_axis.set_title('Heading Angle Over Time')
 
-        self.eye_angles_plot_axis = self.eye_angles_plot.figure.subplots()
-        [self.eye_angles_plot_axis.plot(self.timepoints, self.smoothed_eye_angles[i], color = self.colours[i - 3], lw = 1) for i in range(len(self.smoothed_eye_angles))]
-        self.eye_angles_plot_axis.set_xlabel('Time (s)')
-        self.eye_angles_plot_axis.set_ylabel('Angle (radians)')
-        self.eye_angles_plot_axis.set_title('Eye Angles Over Time')
+            self.eye_angles_plot_axis = self.eye_angles_plot.figure.subplots()
+            [self.eye_angles_plot_axis.plot(self.timepoints, self.smoothed_eye_angles[i], color = self.colours[i - 3], lw = 1) for i in range(len(self.smoothed_eye_angles))]
+            self.eye_angles_plot_axis.set_xlabel('Time (s)')
+            self.eye_angles_plot_axis.set_ylabel('Angle (radians)')
+            self.eye_angles_plot_axis.set_title('Eye Angles Over Time')
+
+        else:
+            self.tail_angle_plot_axis.cla()
+            self.heading_angle_plot_axis.cla()
+            self.eye_angles_plot_axis.cla()
 
 class TimerThread(QThread):
 
