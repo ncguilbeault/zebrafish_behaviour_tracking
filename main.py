@@ -3641,7 +3641,7 @@ class TrackVideoThread(QThread):
                                 # Find the midpoint of the line that connects both eyes.
                                 heading_coords = [(first_eye_coords[0] + second_eye_coords[0]) / 2, (first_eye_coords[1] + second_eye_coords[1]) / 2]
                                 # Find the swim bladder coordinates by finding the next brightest coordinates that lie on a circle around the heading coordinates with a radius equal to the distance between the eyes and the swim bladder.
-                                swim_bladder_coords = ut.calculate_next_coords(heading_coords, dist_swim_bladder, frame, n_angles = 100, range_angles = 2 * np.pi, tail_calculation = False)
+                                swim_bladder_coords = ut.calculate_next_coords(heading_coords, dist_swim_bladder, frame, method = initial_pixel_search, n_angles = 100, range_angles = 2 * np.pi, tail_calculation = False)
                                 # Convert the frame into the absolute difference between the frame and the background.
                                 frame = cv2.absdiff(frame, background)
                                 # Apply a median blur filter to the frame.
