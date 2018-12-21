@@ -2368,6 +2368,7 @@ class TrackingContent(QMainWindow):
             self.track_all_videos_button.setEnabled(False)
 
         if self.loaded_videos_and_parameters_dict[self.video_path]['descriptors'] is None:
+            print('here')
             self.descriptors_dict['video_path_basename'] = self.video_path_basename
             self.descriptors_dict['video_path_folder'] = self.video_path_folder
             self.descriptors_dict['video_n_frames'] = self.video_n_frames
@@ -4253,6 +4254,7 @@ class TrackAllVideosThread(QThread):
                     dist_swim_bladder, range_angles, median_blur, pixel_threshold, frame_change_threshold, heading_line_length, extended_eyes_calculation, eyes_threshold,
                     invert_threshold, save_video, starting_frame, n_frames, save_path, video_fps):
 
+        # print(video_path, background, colours, tracking_method, initial_pixel_search, n_tail_points, dist_tail_points, dist_eyes, dist_swim_bladder, range_angles, median_blur, pixel_threshold, frame_change_threshold, heading_line_length, extended_eyes_calculation, eyes_threshold, invert_threshold, save_video, starting_frame, n_frames, save_path, video_fps)
         self.current_status = 'Tracking Video'
         colours = [[colours[i][2], colours[i][1], colours[i][0]] for i in range(len(colours))]
 
@@ -4265,7 +4267,6 @@ class TrackAllVideosThread(QThread):
         if save_path == None:
             save_path = os.path.dirname(video_path)
 
-        # print(len(background), len(background[0]), len(frame), len(frame[0]))
         video_n_frames = ut.get_total_frame_number_from_video(video_path)
         frame_size = ut.get_frame_size_from_video(video_path)
 
@@ -4576,12 +4577,12 @@ class TrackAllVideosThread(QThread):
                                             second_eye_angle = cv2.fitEllipse(contours[i])[2] * np.pi / 180
                                 # Find the midpoint of the line that connects both eyes.
                                 heading_coords = [(first_eye_coords[0] + second_eye_coords[0]) / 2, (first_eye_coords[1] + second_eye_coords[1]) / 2]
+                                # Find the swim bladder coordinates by finding the next brightest coordinates that lie on a circle around the heading coordinates with a radius equal to the distance between the eyes and the swim bladder.
+                                swim_bladder_coords = ut.calculate_next_coords(heading_coords, dist_swim_bladder, frame, method = initial_pixel_search, n_angles = 100, range_angles = 2 * np.pi, tail_calculation = False)
                                 # Convert the frame into the absolute difference between the frame and the background.
                                 frame = cv2.absdiff(frame, background)
                                 # Apply a median blur filter to the frame.
                                 frame = cv2.medianBlur(frame, median_blur)
-                                # Find the swim bladder coordinates by finding the next brightest coordinates that lie on a circle around the heading coordinates with a radius equal to the distance between the eyes and the swim bladder.
-                                swim_bladder_coords = ut.calculate_next_coords(heading_coords, dist_swim_bladder, frame, n_angles = 100, range_angles = 2 * np.pi, tail_calculation = False)
                                 # Find the body coordinates by finding the center of the triangle that connects the eyes and swim bladder.
                                 body_coords = [int(round((swim_bladder_coords[0] + first_eye_coords[0] + second_eye_coords[0]) / 3)), int(round((swim_bladder_coords[1] + first_eye_coords[1] + second_eye_coords[1]) / 3))]
                                 # Calculate the heading angle as the angle between the body coordinates and the heading coordinates.
@@ -5851,9 +5852,9 @@ class DataPlot(QMainWindow):
                 self.tail_angle_frames = np.append(self.tail_angle_frames, self.tail_angle_frames[i - 1] + 1)
                 self.tail_angle_frames = np.append(self.tail_angle_frames, self.tail_angle_frames[i - 1] + 2)
 
-        for i in range(len(self.tail_angles)):
-            for j in self.tail_angle_frames:
-                self.tail_angles[i][j] = 0.0
+        # for i in range(len(self.tail_angles)):
+        #     for j in self.tail_angle_frames:
+        #         self.tail_angles[i][j] = 0.0
         self.smoothed_tail_angles = [np.convolve(self.tail_angles[i], np.ones(self.smoothing_factor)/self.smoothing_factor, mode = 'same') for i in range(len(self.tail_angles))]
 
         j = 0
@@ -5866,11 +5867,11 @@ class DataPlot(QMainWindow):
         self.heading_angles = np.array([self.heading_angle_array[i] - self.heading_angle_array[0] for i in range(len(self.heading_angle_array))])
 
         i = 0
-        for j in range(len(self.heading_angles)):
-            if j not in self.tail_angle_frames:
-                i = j
-            else:
-                self.heading_angles[j] = self.heading_angles[i]
+        # for j in range(len(self.heading_angles)):
+        #     if j not in self.tail_angle_frames:
+        #         i = j
+        #     else:
+        #         self.heading_angles[j] = self.heading_angles[i]
 
         for i in range(1, len(self.heading_angles)):
             if self.heading_angles[i] - self.heading_angles[i - 1] > np.pi:
