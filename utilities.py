@@ -1,9 +1,9 @@
 '''Software Written by Nicholas Guilbeault 2018'''
 
 # Import libraries.
+import os
 import numpy as np
 import cv2
-import os
 import sys
 import multiprocessing as mp
 import time
@@ -32,6 +32,49 @@ def get_video_format_from_video(video_path):
     video_format = capture.get(cv2.CAP_PROP_FORMAT)
     capture.release()
     return video_format
+
+def filenames_from_folder(folder, filename_starts_with = None, filename_contains = None, filename_ends_with = None, filename_does_not_contain = None):
+
+    '''
+    Function that returns the filenames contained inside a folder.
+    The function can be provided with arguments to specify which files to look for. This includes what the filenames start and end with, as well as if something is contained in the filename.
+    '''
+
+    # Return the names of all the files in the folder
+    filenames = ['{0}\{1}'.format(folder, os.path.basename(filename)) for filename in os.listdir(folder)]
+
+    # Check if filename_starts_with was given
+    if filename_starts_with != None:
+        # Return the names of all the files that start with ...
+        filenames = ['{0}\{1}'.format(folder, os.path.basename(filename)) for filename in filenames if filename.startswith(filename_starts_with)]
+
+    # Check if filename_contains was given
+    if filename_contains != None:
+        if isinstance(filename_contains, list):
+            for item in filename_contains:
+                filenames = ['{0}\{1}'.format(folder, os.path.basename(filename)) for filename in filenames if item not in filename]
+        else:
+            # Return the names of all the files that contain ...
+            filenames = ['{0}\{1}'.format(folder, os.path.basename(filename)) for filename in filenames if filename_contains in filename]
+
+    # Check if filename_ends_with was given
+    if filename_ends_with != None:
+        if isinstance(filename_ends_with, list):
+            filenames = np.hstack([['{0}\{1}'.format(folder, os.path.basename(filename)) for filename in filenames if filename.endswith(filename_ends_with[i])] for i in range(len(filename_ends_with))]).tolist()
+        else:
+            # Return the names of all the files that end with ...
+            filenames = ['{0}\{1}'.format(folder, os.path.basename(filename)) for filename in filenames if filename.endswith(filename_ends_with)]
+
+    # Check if filename_does_not_contain was given
+    if filename_does_not_contain != None:
+        if isinstance(filename_does_not_contain, list):
+            for item in filename_does_not_contain:
+                filenames = ['{0}\{1}'.format(folder, os.path.basename(filename)) for filename in filenames if item not in os.path.basename(filename)]
+        else:
+            # Return the names of all the files that do not contain ...
+            filenames = ['{0}\{1}'.format(folder, os.path.basename(filename)) for filename in filenames if filename_does_not_contain not in filename]
+
+    return filenames
 
 def convert_total_seconds_to_hours_minutes_seconds(total_seconds):
     hours = int(total_seconds / 3600)
