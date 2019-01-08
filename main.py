@@ -5,9 +5,8 @@ import sys
 from tracking_window import TrackingWindow
 from plotting_window import PlottingWindow
 
-from PyQt5.QtWidgets import *
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
+from PyQt5.QtWidgets import QMainWindow, QTabWidget, QApplication, QDesktopWidget, QMenuBar, QAction
+from PyQt5.QtCore import Qt
 
 class MainWindow(QMainWindow):
 
@@ -24,12 +23,13 @@ class MainWindow(QMainWindow):
         self.setWindowState(Qt.WindowMaximized)
         self.show()
 
-    def add_menubar(self):
-        self.menubar = QMenuBar()
-        self.menubar.resize(self.main_window_width, self.menubar.height())
     def get_main_window_attributes(self):
         self.main_window_width = QDesktopWidget().availableGeometry().width()
         self.main_window_height = QDesktopWidget().availableGeometry().height()
+
+    def add_menubar(self):
+        self.menubar = QMenuBar()
+        self.menubar.resize(self.main_window_width, self.menubar.height())
     def add_tracking_options_to_menubar(self):
         self.tracking_options_menu = self.menubar.addMenu('&Tracking Options')
 
