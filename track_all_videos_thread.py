@@ -321,13 +321,14 @@ class TrackAllVideosThread(QThread):
             self.heading_line_length = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['heading_line_length']
             self.extended_eyes_calculation = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['extended_eyes_calculation']
             self.eyes_threshold = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['eyes_threshold']
+            self.eyes_line_length = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['eyes_line_length']
             self.invert_threshold = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['invert_threshold']
             self.save_video = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['save_video']
             self.starting_frame = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['starting_frame']
             self.n_frames = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['n_frames']
             self.save_path = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['save_path']
             self.video_fps = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['video_fps']
-            self.save_background = True
+            self.save_background = self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters']['save_background']
 
             self.current_progress_range_signal.emit(self.video_n_frames)
 
@@ -725,7 +726,7 @@ class TrackAllVideosThread(QThread):
                     if save_video:
                         # Write the new frame that contains the annotated frame with tracked points to a new video.
                         writer.write(original_frame)
-        elif tracking_method == 'head_fixed':
+        elif tracking_method == 'head_fixed_1' or tracking_method == 'head_fixed_2':
             # Iterate through each frame.
             for n in range(n_frames):
                 self.current_progress_signal.emit(n + 1)
@@ -801,12 +802,20 @@ class TrackAllVideosThread(QThread):
                                             second_eye_angle = cv2.fitEllipse(contours[i])[2] * np.pi / 180
                                 # Find the midpoint of the line that connects both eyes.
                                 heading_coords = [(first_eye_coords[0] + second_eye_coords[0]) / 2, (first_eye_coords[1] + second_eye_coords[1]) / 2]
-                                # Find the swim bladder coordinates by finding the next brightest coordinates that lie on a circle around the heading coordinates with a radius equal to the distance between the eyes and the swim bladder.
-                                swim_bladder_coords = ut.calculate_next_coords(heading_coords, dist_swim_bladder, frame, method = initial_pixel_search, n_angles = 100, range_angles = 2 * np.pi, tail_calculation = False)
-                                # Convert the frame into the absolute difference between the frame and the background.
-                                frame = cv2.absdiff(frame, background)
-                                # Apply a median blur filter to the frame.
-                                frame = cv2.medianBlur(frame, median_blur)
+                                if tracking_method == 'head_fixed_1':
+                                    # Find the swim bladder coordinates by finding the next brightest coordinates that lie on a circle around the heading coordinates with a radius equal to the distance between the eyes and the swim bladder.
+                                    swim_bladder_coords = ut.calculate_next_coords(heading_coords, dist_swim_bladder, frame, method = initial_pixel_search, n_angles = 100, range_angles = 2 * np.pi, tail_calculation = False)
+                                    # Convert the frame into the absolute difference between the frame and the background.
+                                    frame = cv2.absdiff(frame, background)
+                                    # Apply a median blur filter to the frame.
+                                    frame = cv2.medianBlur(frame, median_blur)
+                                if tracking_method == 'head_fixed_2':
+                                    # Convert the frame into the absolute difference between the frame and the background.
+                                    frame = cv2.absdiff(frame, background)
+                                    # Apply a median blur filter to the frame.
+                                    frame = cv2.medianBlur(frame, median_blur)
+                                    # Find the swim bladder coordinates by finding the next brightest coordinates that lie on a circle around the heading coordinates with a radius equal to the distance between the eyes and the swim bladder.
+                                    swim_bladder_coords = ut.calculate_next_coords(heading_coords, dist_swim_bladder, frame, method = initial_pixel_search, n_angles = 100, range_angles = 2 * np.pi, tail_calculation = False)
                                 # Find the body coordinates by finding the center of the triangle that connects the eyes and swim bladder.
                                 body_coords = [int(round((swim_bladder_coords[0] + first_eye_coords[0] + second_eye_coords[0]) / 3)), int(round((swim_bladder_coords[1] + first_eye_coords[1] + second_eye_coords[1]) / 3))]
                                 # Calculate the heading angle as the angle between the body coordinates and the heading coordinates.
