@@ -623,7 +623,7 @@ def preview_tracking_results(video_path, colours, n_tail_points, dist_tail_point
     # Unload the video from memory.
     capture.release()
 
-def track_tail_in_frame(frame, background, success, n_tail_points, dist_tail_points, dist_eyes, dist_swim_bladder, pixel_threshold, extended_eyes_calculation, eyes_threshold, median_blur_value, tracking_method, initial_pixel_search, invert_threshold, range_angles):
+def track_tail_in_frame(frame, background, success, n_tail_points, dist_tail_points, dist_eyes, dist_swim_bladder, pixel_threshold, extended_eyes_calculation, eyes_threshold, median_blur, tracking_method, initial_pixel_search, invert_threshold, range_angles):
 
     # Initialize variables for each frame.
     first_eye_coords = [np.nan, np.nan]
@@ -642,7 +642,7 @@ def track_tail_in_frame(frame, background, success, n_tail_points, dist_tail_poi
                     # Convert the frame into the absolute difference between the frame and the background.
                     frame = cv2.absdiff(frame, background)
                     # Apply a median blur filter to the frame.
-                    frame = cv2.medianBlur(frame, median_blur_value)
+                    frame = cv2.medianBlur(frame, median_blur)
                     # Return the coordinate of the brightest pixel.
                     first_eye_coords = [np.where(frame == np.max(frame))[0][0], np.where(frame == np.max(frame))[1][0]]
                     # Calculate the next brightest pixel that lies on the circle drawn around the first eye coordinates and has a radius equal to the distance between the eyes.
@@ -720,7 +720,7 @@ def track_tail_in_frame(frame, background, success, n_tail_points, dist_tail_poi
                     return None
             else:
                 return None
-        elif tracking_method == 'head_fixed':
+        elif tracking_method == 'head_fixed_1' or tracking_method == 'head_fixed_2':
             if success:
                 if np.min(frame) < pixel_threshold:
                     if initial_pixel_search == 'darkest':
@@ -731,6 +731,7 @@ def track_tail_in_frame(frame, background, success, n_tail_points, dist_tail_poi
                         first_eye_coords = [np.where(frame == np.max(frame))[0][0], np.where(frame == np.max(frame))[1][0]]
                     # Calculate the next brightest pixel that lies on the circle drawn around the first eye coordinates and has a radius equal to the distance between the eyes.
                     second_eye_coords = calculate_next_coords(first_eye_coords, dist_eyes, frame, method = initial_pixel_search, n_angles = 100, range_angles = 2 * np.pi, tail_calculation = False)
+                    print('First call: {0}{1}'.format(first_eye_coords, second_eye_coords))
                     # Check whether to to an additional process to calculate eye angles.
                     if extended_eyes_calculation:
                         # Calculate the angle between the two eyes.
@@ -753,14 +754,23 @@ def track_tail_in_frame(frame, background, success, n_tail_points, dist_tail_poi
                                 M = cv2.moments(contours[i])
                                 second_eye_coords = [int(round(M['m01']/M['m00'])), int(round(M['m10']/M['m00']))]
                                 second_eye_angle = cv2.fitEllipse(contours[i])[2] * np.pi / 180
+                    print('Second call: {0}{1}'.format(first_eye_coords, second_eye_coords))
                     # Find the midpoint of the line that connects both eyes.
                     heading_coords = [(first_eye_coords[0] + second_eye_coords[0]) / 2, (first_eye_coords[1] + second_eye_coords[1]) / 2]
-                    # Find the swim bladder coordinates by finding the next brightest coordinates that lie on a circle around the heading coordinates with a radius equal to the distance between the eyes and the swim bladder.
-                    tail_point_coords[0] = calculate_next_coords(heading_coords, dist_swim_bladder, frame, method = initial_pixel_search, n_angles = 100, range_angles = 2 * np.pi, tail_calculation = False)
-                    # Convert the frame into the absolute difference between the frame and the background.
-                    frame = cv2.absdiff(frame, background)
-                    # Apply a median blur filter to the frame.
-                    frame = cv2.medianBlur(frame, median_blur_value)
+                    if tracking_method == 'head_fixed_1':
+                        # Find the swim bladder coordinates by finding the next brightest coordinates that lie on a circle around the heading coordinates with a radius equal to the distance between the eyes and the swim bladder.
+                        tail_point_coords[0] = calculate_next_coords(heading_coords, dist_swim_bladder, frame, method = initial_pixel_search, n_angles = 100, range_angles = 2 * np.pi, tail_calculation = False)
+                        # Convert the frame into the absolute difference between the frame and the background.
+                        frame = cv2.absdiff(frame, background)
+                        # Apply a median blur filter to the frame.
+                        frame = cv2.medianBlur(frame, median_blur)
+                    elif tracking_method == 'head_fixed_2':
+                        # Convert the frame into the absolute difference between the frame and the background.
+                        frame = cv2.absdiff(frame, background)
+                        # Apply a median blur filter to the frame.
+                        frame = cv2.medianBlur(frame, median_blur)
+                        # Find the swim bladder coordinates by finding the next brightest coordinates that lie on a circle around the heading coordinates with a radius equal to the distance between the eyes and the swim bladder.
+                        tail_point_coords[0] = calculate_next_coords(heading_coords, dist_swim_bladder, frame, n_angles = 100, range_angles = 2 * np.pi, tail_calculation = False)
                     # Find the body coordinates by finding the center of the triangle that connects the eyes and swim bladder.
                     body_coords = [int(round((tail_point_coords[0][0] + first_eye_coords[0] + second_eye_coords[0]) / 3)), int(round((tail_point_coords[0][1] + first_eye_coords[1] + second_eye_coords[1]) / 3))]
                     # Calculate the heading angle as the angle between the body coordinates and the heading coordinates.
@@ -785,6 +795,7 @@ def track_tail_in_frame(frame, background, success, n_tail_points, dist_tail_poi
                                 second_eye_angle += np.pi
                         if np.isnan(first_eye_angle) or np.isnan(second_eye_angle):
                             return None
+                    print('Third call: {0}{1}'.format(first_eye_coords, second_eye_coords))
                     # Iterate through the number of tail points.
                     for m in range(1, n_tail_points + 1):
                         # Check if this is the first tail point.
@@ -800,7 +811,6 @@ def track_tail_in_frame(frame, background, success, n_tail_points, dist_tail_poi
                         # Calculate the next set of tail coordinates.
                         tail_point_coords[m] = calculate_next_coords(tail_point_coords[m - 1], dist_tail_points, frame, angle = tail_angle, range_angles = range_angles)
                     tracking_results = np.array([np.array(first_eye_coords), np.array(second_eye_coords), first_eye_angle, second_eye_angle, np.array(heading_coords), np.array(body_coords), heading_angle, np.array(tail_point_coords)])
-                    # if not np.isnan(np.hstack(tracking_results).any()):
                     return tracking_results
                 else:
                     return None
@@ -992,7 +1002,7 @@ def track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes,
                 save_background = True, extended_eyes_calculation = False,
                 eyes_threshold = None, line_length = 0, video_fps = None,
                 pixel_threshold = 100, frame_change_threshold = 10, convert_colours_from_RGB_to_BGR = False,
-                range_angles = 120, median_blur_value = 3, initial_pixel_search = 'brightest',
+                range_angles = 120, median_blur = 3, initial_pixel_search = 'brightest',
                 invert_threshold = False, eyes_line_length = 0, print_progress = True):
     '''
     Tracks a video.
@@ -1146,7 +1156,7 @@ def track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes,
                 # Convert the frame into the absolute difference between the frame and the background.
                 frame = cv2.absdiff(frame, background)
                 # Apply a median blur filter to the frame.
-                frame = cv2.medianBlur(frame, median_blur_value)
+                frame = cv2.medianBlur(frame, median_blur)
                 try:
                     # Check to ensure that the maximum pixel value is greater than a certain value. Useful for determining whether or not the at least one of the eyes is present in the frame.
                     if np.max(frame) > pixel_threshold:
@@ -1387,7 +1397,7 @@ def track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes,
                             # Convert the frame into the absolute difference between the frame and the background.
                             frame = cv2.absdiff(frame, background)
                             # Apply a median blur filter to the frame.
-                            frame = cv2.medianBlur(frame, median_blur_value)
+                            frame = cv2.medianBlur(frame, median_blur)
                             # Find the swim bladder coordinates by finding the next brightest coordinates that lie on a circle around the heading coordinates with a radius equal to the distance between the eyes and the swim bladder.
                             swim_bladder_coords = calculate_next_coords(heading_coords, dist_swim_bladder, frame, n_angles = 100, range_angles = 2 * np.pi, tail_calculation = False)
                             # Find the body coordinates by finding the center of the triangle that connects the eyes and swim bladder.
