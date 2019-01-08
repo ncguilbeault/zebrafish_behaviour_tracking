@@ -540,12 +540,15 @@ class PlottingContent(QMainWindow):
     def trigger_load_tracking_results(self):
         self.tracking_data_path, _ = QFileDialog.getOpenFileName(self, "Open Tracking Data", "","Tracking Data (*.npy)", options = QFileDialog.Options())
         if self.tracking_data_path:
+            # try:
             data = np.load(self.tracking_data_path).item()
             self.data_plot = DataPlot()
             self.data_plot.initialize_class_variables(data = data)
             self.data_plot.calculate_variables()
             self.data_plot.update_plots()
             self.update_data_plot_window()
+            # except:
+            #     print('Error! Could not load tracking data.')
     def trigger_unload_all_plotting(self):
         self.update_data_plot_window(clear = True)
         self.initialize_class_variables()
@@ -831,30 +834,26 @@ class DataPlot(QMainWindow):
         self.new_tail_coords = [[[self.new_tail_coords[j][i][0] * np.cos(self.body_tail_angles[j]) - self.new_tail_coords[j][i][1] * np.sin(self.body_tail_angles[j]), self.new_tail_coords[j][i][0] * np.sin(self.body_tail_angles[j]) + self.new_tail_coords[j][i][1] * np.cos(self.body_tail_angles[j])] for i in range(len(self.new_tail_coords[0]))] for j in range(len(self.new_tail_coords))]
         self.tail_angles = [[np.arctan2(self.new_tail_coords[j][i + 1][0] - self.new_tail_coords[j][i][0], self.new_tail_coords[j][i + 1][1] - self.new_tail_coords[j][i][1]) for i in range(len(self.new_tail_coords[0]) - 1)] for j in range(len(self.new_tail_coords))]
         self.tail_angles = [np.array([self.tail_angles[i][j] for i in range(len(self.tail_angles))]) for j in range(len(self.tail_angles[0]))]
-        for i in range(1, len(self.tail_angles)):
-            for j in range(len(self.tail_angles[i])):
-                if self.tail_angles[i][j] - self.tail_angles[i - 1][j] > np.pi:
-                    self.tail_angles[i][j] -= np.pi * 2
-                elif self.tail_angles[i][j] - self.tail_angles[i - 1][j] < -np.pi:
-                    self.tail_angles[i][j] += np.pi * 2
+        self.tail_angles = [[self.tail_angles[i][j] - np.pi * 2 if self.tail_angles[i][j] - self.tail_angles[i - 1][j] > np.pi else self.tail_angles[i][j] + np.pi * 2 if self.tail_angles[i][j] - self.tail_angles[i - 1][j] < -np.pi else self.tail_angles[i][j] for j in range(len(self.tail_angles[i]))] for i in range(1, len(self.tail_angles))]
 
         self.sum_tail_angles = [np.sum([abs(self.tail_angles[i][j]) for i in range(len(self.tail_angles))]) for j in range(len(self.tail_angles[0]))]
         self.tail_angle_frames = np.where([self.sum_tail_angles[i] == self.sum_tail_angles[i + 1] == self.sum_tail_angles[i + 2] for i in range(len(self.sum_tail_angles) - 2)])[0]
         self.tail_angle_frames = np.where([self.sum_tail_angles[i] == self.sum_tail_angles[i + 1] for i in range(len(self.sum_tail_angles) - 1)])[0]
-        for i in range(1, len(self.tail_angle_frames)):
-            if self.tail_angle_frames[i] - self.tail_angle_frames[i - 1] == 2:
-                self.tail_angle_frames = np.append(self.tail_angle_frames, self.tail_angle_frames[i - 1] + 1)
-            elif self.tail_angle_frames[i] - self.tail_angle_frames[i - 1] == 3:
-                self.tail_angle_frames = np.append(self.tail_angle_frames, self.tail_angle_frames[i - 1] + 1)
-                self.tail_angle_frames = np.append(self.tail_angle_frames, self.tail_angle_frames[i - 1] + 2)
+
+        # for i in range(1, len(self.tail_angle_frames)):
+        #     if self.tail_angle_frames[i] - self.tail_angle_frames[i - 1] == 2:
+        #         self.tail_angle_frames = np.append(self.tail_angle_frames, self.tail_angle_frames[i - 1] + 1)
+        #     elif self.tail_angle_frames[i] - self.tail_angle_frames[i - 1] == 3:
+        #         self.tail_angle_frames = np.append(self.tail_angle_frames, self.tail_angle_frames[i - 1] + 1)
+        #         self.tail_angle_frames = np.append(self.tail_angle_frames, self.tail_angle_frames[i - 1] + 2)
 
         # for i in range(len(self.tail_angles)):
         #     for j in self.tail_angle_frames:
         #         self.tail_angles[i][j] = 0.0
         self.smoothed_tail_angles = [np.convolve(self.tail_angles[i], np.ones(self.smoothing_factor)/self.smoothing_factor, mode = 'same') for i in range(len(self.tail_angles))]
 
-        j = 0
         if np.isnan(self.heading_angle_array[0]):
+            j = 0
             while np.isnan(self.heading_angle_array[0]):
                 if not np.isnan(self.heading_angle_array[j]):
                     self.heading_angle_array[0] = self.heading_angle_array[j]
@@ -862,7 +861,7 @@ class DataPlot(QMainWindow):
 
         self.heading_angles = np.array([self.heading_angle_array[i] - self.heading_angle_array[0] for i in range(len(self.heading_angle_array))])
 
-        i = 0
+        # i = 0
         # for j in range(len(self.heading_angles)):
         #     if j not in self.tail_angle_frames:
         #         i = j
@@ -878,6 +877,7 @@ class DataPlot(QMainWindow):
         self.smoothed_heading_angles = np.convolve(self.heading_angles, np.ones(self.smoothing_factor)/self.smoothing_factor, mode = 'same')
 
         self.eye_angles = [[self.eye_angle_array[i][j] - self.heading_angle_array[i] for i in range(len(self.eye_angle_array))] for j in range(len(self.eye_angle_array[0]))]
+        print(len(self.eye_angles))
 
         i = 0
         for k in range(len(self.eye_angles)):
@@ -887,19 +887,7 @@ class DataPlot(QMainWindow):
                 else:
                     self.eye_angles[k][j] = self.eye_angles[k][i]
 
-        for j in range(len(self.eye_angles)):
-            for i in range(1, len(self.eye_angles[j])):
-                if self.eye_angles[j][i] - self.eye_angles[j][i - 1] > np.pi * 0.9:
-                    self.eye_angles[j][i] -= np.pi * 2
-                elif self.eye_angles[j][i] - self.eye_angles[j][i - 1] < -np.pi * 0.9:
-                    self.eye_angles[j][i] += np.pi * 2
-
-        for j in range(len(self.eye_angles)):
-            for i in range(1, len(self.eye_angles[j])):
-                if self.eye_angles[j][i] > np.pi:
-                    self.eye_angles[j][i] -= np.pi * 2
-                elif self.eye_angles[j][i] < -np.pi:
-                    self.eye_angles[j][i] += np.pi * 2
+        self.eye_angles = [[self.eye_angles[i][j] - np.pi * 2 if self.eye_angles[i][j] - self.eye_angles[i][j - 1] > np.pi else self.eye_angles[i][j] + np.pi * 2 if self.eye_angles[i][j] - self.eye_angles[i][j - 1] < -np.pi else self.eye_angles[i][j] for j in range(len(self.eye_angles[i]))] for i in range(len(self.eye_angles))]
 
         self.smoothed_eye_angles = [np.convolve(self.eye_angles[i], np.ones(self.smoothing_factor)/self.smoothing_factor, mode = 'same') for i in range(len(self.eye_angles))]
 
