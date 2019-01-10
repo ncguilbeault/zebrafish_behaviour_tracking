@@ -274,6 +274,7 @@ class TrackingContent(QMainWindow):
         self.previous_preview_frame_window_vertical_scroll_bar_max = None
         self.magnify_frame = False
         self.pan_frame = False
+        self.circular_crop_frame = False
         self.play_video_slow_speed = False
         self.play_video_medium_speed = False
         self.play_video_max_speed = False
@@ -641,7 +642,7 @@ class TrackingContent(QMainWindow):
         new_x = ((self.main_window_x_offset + self.preview_frame_number_textbox_label_size[0] + self.preview_frame_number_textbox_size[0] + self.video_playback_button_x_offset + (3 * (self.video_playback_button_x_spacing + self.video_playback_button_size[0]) + self.video_playback_button_size[0]) + self.frame_change_button_x_offset + (5 * (self.frame_change_button_x_spacing + self.frame_change_button_size[0]) + self.frame_change_button_size[0]) + self.interactive_frame_button_x_offset + (2 * (self.interactive_frame_button_x_spacing + self.interactive_frame_button_size[0]))) / 2560) * self.main_window_width
         self.circular_crop_frame_button.move(new_x, new_y)
         self.circular_crop_frame_button.resize(new_width, new_height)
-        # self.circular_crop_frame_button.clicked.connect(self.check_circular_crop_frame_button)
+        self.circular_crop_frame_button.clicked.connect(self.check_circular_crop_frame_button)
         self.circular_crop_frame_button.setCheckable(True)
 
         self.update_interactive_frame_buttons(inactivate = True)
@@ -1391,6 +1392,8 @@ class TrackingContent(QMainWindow):
                 self.magnify_frame_button.setEnabled(True)
             if not self.pan_frame_button.isEnabled():
                 self.pan_frame_button.setEnabled(True)
+            if not self.circular_crop_frame_button.isEnabled():
+                self.circular_crop_frame_button.setEnabled(True)
         if inactivate:
             if self.magnify_frame_button.isEnabled():
                 self.magnify_frame_button.setEnabled(False)
@@ -1400,6 +1403,8 @@ class TrackingContent(QMainWindow):
                 self.pan_frame_button.setEnabled(False)
                 if self.pan_frame_button.isChecked():
                     self.pan_frame_button.setChecked(False)
+            if self.circular_crop_frame_button.isEnabled():
+                self.circular_crop_frame_button.setEnabled(False)
         if self.magnify_frame_button.isEnabled():
             if self.magnify_frame:
                 self.magnify_frame_button.setChecked(True)
@@ -1410,6 +1415,11 @@ class TrackingContent(QMainWindow):
                 self.pan_frame_button.setChecked(True)
             else:
                 self.pan_frame_button.setChecked(False)
+        if self.circular_crop_frame_button.isEnabled():
+            if self.circular_crop_frame:
+                self.circular_crop_frame_button.setChecked(True)
+            else:
+                self.circular_crop_frame_button.setChecked(False)
     def update_frame_window_slider_position(self):
         self.frame_window_slider.setValue(self.frame_number)
     def update_tracking_parameters(self, activate = False, inactivate = False):
@@ -1896,15 +1906,17 @@ class TrackingContent(QMainWindow):
                 self.update_colour_parameters_buttons(activate = True)
                 if self.background_path:
                     self.update_preview_parameters(activate = True)
-    def trigger_update_preview(self, magnify = False, demagnify = False):
+    def trigger_update_preview(self, magnify = False, demagnify = False, label_size = None):
+        if label_size is None:
+            label_size = self.preview_frame_window_label_size[0]
         if self.preview_background:
             use_grayscale = True
             if magnify:
-                self.update_preview_frame(self.background, self.background_width, self.background_height, scaled_width = self.preview_frame_window_label_size[0] + 100, grayscale = use_grayscale)
+                self.update_preview_frame(self.background, self.background_width, self.background_height, scaled_width = label_size + 100, grayscale = use_grayscale)
             if demagnify:
-                self.update_preview_frame(self.background, self.background_width, self.background_height, scaled_width = self.preview_frame_window_label_size[0] - 100, grayscale = use_grayscale)
+                self.update_preview_frame(self.background, self.background_width, self.background_height, scaled_width = label_size - 100, grayscale = use_grayscale)
             if not magnify and not demagnify:
-                self.update_preview_frame(self.background, self.background_width, self.background_height, scaled_width = self.preview_frame_window_label_size[0], grayscale = use_grayscale)
+                self.update_preview_frame(self.background, self.background_width, self.background_height, scaled_width = label_size, grayscale = use_grayscale)
             self.update_preview_frame_window()
             self.update_frame_window_slider(inactivate = True)
             self.update_preview_frame_number_textbox(inactivate = True)
@@ -1922,11 +1934,11 @@ class TrackingContent(QMainWindow):
                     elif self.tracking_method == 'head_fixed_1' or self.tracking_method == 'head_fixed_2':
                         self.frame = ut.apply_threshold_to_frame(self.frame, self.eyes_threshold, invert = self.invert_threshold)
                     if magnify:
-                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = self.preview_frame_window_label_size[0] + 100, grayscale = use_grayscale)
+                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = label_size + 100, grayscale = use_grayscale)
                     if demagnify:
-                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = self.preview_frame_window_label_size[0] - 100, grayscale = use_grayscale)
+                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = label_size - 100, grayscale = use_grayscale)
                     if not magnify and not demagnify:
-                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = self.preview_frame_window_label_size[0], grayscale = use_grayscale)
+                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = label_size, grayscale = use_grayscale)
                     self.update_preview_frame_window()
                     self.update_frame_window_slider(activate = True)
                     self.update_preview_frame_number_textbox(activate = True)
@@ -1953,11 +1965,11 @@ class TrackingContent(QMainWindow):
                             self.frame = ut.annotate_tracking_results_onto_frame(self.frame, results, self.colours, self.heading_line_length, self.extended_eyes_calculation, self.eyes_line_length)
                             use_grayscale = False
                     if magnify:
-                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = self.preview_frame_window_label_size[0] + 100, grayscale = use_grayscale)
+                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = label_size + 100, grayscale = use_grayscale)
                     if demagnify:
-                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = self.preview_frame_window_label_size[0] - 100, grayscale = use_grayscale)
+                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = label_size - 100, grayscale = use_grayscale)
                     if not magnify and not demagnify:
-                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = self.preview_frame_window_label_size[0], grayscale = use_grayscale)
+                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = label_size, grayscale = use_grayscale)
                     self.update_preview_frame_window()
                     self.update_frame_window_slider(activate = True)
                     self.update_preview_frame_number_textbox(activate = True)
@@ -2694,6 +2706,9 @@ class TrackingContent(QMainWindow):
             if self.pan_frame_button.isChecked():
                 self.pan_frame = False
                 self.pan_frame_button.setChecked(False)
+            if self.circular_crop_frame_button.isChecked():
+                self.circular_crop_frame = False
+                self.circular_crop_frame_button.setChecked(False)
         else:
             self.magnify_frame = False
     def check_pan_frame_button(self):
@@ -2702,8 +2717,24 @@ class TrackingContent(QMainWindow):
             if self.magnify_frame_button.isChecked():
                 self.magnify_frame = False
                 self.magnify_frame_button.setChecked(False)
+            if self.circular_crop_frame_button.isChecked():
+                self.circular_crop_frame = False
+                self.circular_crop_frame_button.setChecked(False)
         else:
             self.pan_frame = False
+    def check_circular_crop_frame_button(self):
+        if self.circular_crop_frame_button.isChecked():
+            self.circular_crop_frame = True
+            if self.magnify_frame_button.isChecked():
+                self.magnify_frame = False
+                self.magnify_frame_button.setChecked(False)
+            if self.pan_frame_button.isChecked():
+                self.pan_frame = False
+                self.pan_frame_button.setChecked(False)
+            self.trigger_update_preview(label_size = self.video_frame_width)
+            self.update_preview_frame_window_scroll_bars()
+        else:
+            self.circular_crop_frame = False
     def check_pause_video_button(self):
         if not self.play_video_slow_speed and not self.play_video_medium_speed and not self.play_video_max_speed:
             self.pause_video_button.setChecked(True)
@@ -2904,11 +2935,12 @@ class TrackingContent(QMainWindow):
 
     # Defining Event Functions
     def event_preview_frame_window_label_mouse_clicked(self, event):
-        self.initial_mouse_position = (event.x(), event.y())
+        print(event.x(), event.y())
         if self.magnify_frame:
+            self.initial_mouse_position = (event.x(), event.y())
             if qApp.mouseButtons() & Qt.LeftButton:
                 self.trigger_update_preview(magnify = True)
-            else:
+            elif qApp.mouseButtons() & Qt.RightButton:
                 if self.preview_frame_window_label_size[0] > 100 and self.preview_frame_window_label_size[1] > 100:
                     self.trigger_update_preview(demagnify = True)
             if self.preview_frame_window_label_size[0] > self.preview_frame_window_size[0]:
@@ -2919,6 +2951,8 @@ class TrackingContent(QMainWindow):
                 current_midpoint_y = (self.preview_frame_window.verticalScrollBar().pageStep() / 2) + self.preview_frame_window.verticalScrollBar().value()
                 new_y = self.initial_mouse_position[1] - current_midpoint_y + self.preview_frame_window.verticalScrollBar().value()
                 self.preview_frame_window.verticalScrollBar().setValue(new_y)
+        if self.pan_frame or self.circular_crop_frame:
+            self.initial_mouse_position = (event.x(), event.y())
         event.accept()
     def event_preview_frame_window_label_mouse_moved(self, event):
         if self.pan_frame:
@@ -2929,6 +2963,8 @@ class TrackingContent(QMainWindow):
                         self.preview_frame_window.horizontalScrollBar().setValue(self.preview_frame_window.horizontalScrollBar().value() - new_frame_pos[0])
                     if self.preview_frame_window_label_size[1] > self.preview_frame_window_size[1]:
                         self.preview_frame_window.verticalScrollBar().setValue(self.preview_frame_window.verticalScrollBar().value() - new_frame_pos[1])
+        if self.circular_crop_frame:
+            print(self.initial_mouse_position)
         event.accept()
     def event_preview_frame_window_wheel_scrolled(self, event):
         event.ignore()
