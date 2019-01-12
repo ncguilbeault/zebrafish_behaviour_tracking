@@ -357,6 +357,12 @@ def apply_threshold_to_frame(frame, value = 100, invert = False):
         threshold_frame = cv2.threshold(frame, value, 255, cv2.THRESH_BINARY)[1].astype(np.uint8)
     return threshold_frame
 
+def apply_circular_mask_to_frame(frame, mask, invert = False):
+    initial_coords = mask[0]
+    radius = mask[1]
+    masked_frame = np.array([np.array([frame[i][j] * 0.5 if abs(np.hypot(i - (initial_coords[0] + radius), j - (initial_coords[1] + radius))) > radius else frame[i][j] for j in range(len(frame[i]))], dtype = frame.dtype) for i in range(len(frame))], dtype = frame.dtype)
+    return masked_frame
+
 def load_background_into_memory(background_path, convert_to_grayscale = True):
 
     if convert_to_grayscale:
