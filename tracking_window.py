@@ -275,6 +275,7 @@ class TrackingContent(QMainWindow):
         self.magnify_frame = False
         self.pan_frame = False
         self.circular_crop_frame = False
+        self.circle_mask = []
         self.play_video_slow_speed = False
         self.play_video_medium_speed = False
         self.play_video_max_speed = False
@@ -1296,9 +1297,12 @@ class TrackingContent(QMainWindow):
         else:
             scaled_width = int(scaled_width / 100) * 100
         self.preview_frame = QImage(frame.data, frame_width, frame_height, format)
+        if len(self.circular_mask) > 0:
+            self.preview_frame = ut.apply_circular_mask_to_frame(self.preview_frame, self.circular_mask)
         self.preview_frame = self.preview_frame.scaledToWidth(scaled_width)
         frame = cv2.resize(frame, dsize=(self.preview_frame.width(), self.preview_frame.height()), interpolation=cv2.INTER_CUBIC).copy()
         self.preview_frame = QImage(frame.data, self.preview_frame.width(), self.preview_frame.height(), format)
+
     def update_preview_frame_window(self, clear = False):
         if not clear:
             self.preview_frame_window_label.setPixmap(QPixmap.fromImage(self.preview_frame))
@@ -2108,39 +2112,8 @@ class TrackingContent(QMainWindow):
         if self.loaded_videos_and_parameters_dict[self.video_path]['background'] is None:
             self.loaded_videos_and_parameters_dict[self.video_path]['background'] = self.background
 
-        print('here')
         self.track_video_progress_window = TrackVideoProgressWindow()
         self.track_video_progress_window.loaded_videos_and_parameters_dict = self.loaded_videos_and_parameters_dict
-        # self.track_video_progress_window.video_path = self.video_path
-        # self.track_video_progress_window.median_blur = self.median_blur
-        # self.track_video_progress_window.n_tail_points = self.n_tail_points
-        # self.track_video_progress_window.dist_tail_points = self.dist_tail_points
-        # self.track_video_progress_window.dist_eyes = self.dist_eyes
-        # self.track_video_progress_window.dist_swim_bladder = self.dist_swim_bladder
-        # self.track_video_progress_window.save_background = self.save_background
-        # self.track_video_progress_window.tracking_method = self.tracking_method
-        # self.track_video_progress_window.n_frames = self.n_frames
-        # self.track_video_progress_window.starting_frame = self.starting_frame
-        # self.track_video_progress_window.save_path = self.save_path
-        # self.track_video_progress_window.background_path = self.background_path
-        # self.track_video_progress_window.background = self.background
-        # self.track_video_progress_window.heading_line_length = self.heading_line_length
-        # self.track_video_progress_window.video_fps = self.video_fps
-        # self.track_video_progress_window.pixel_threshold = self.pixel_threshold
-        # self.track_video_progress_window.frame_change_threshold = self.frame_change_threshold
-        # self.track_video_progress_window.colours = self.colours
-        # self.track_video_progress_window.save_video = self.save_video
-        # self.track_video_progress_window.extended_eyes_calculation = self.extended_eyes_calculation
-        # self.track_video_progress_window.eyes_threshold = self.eyes_threshold
-        # self.track_video_progress_window.invert_threshold = self.invert_threshold
-        # self.track_video_progress_window.eyes_line_length = self.eyes_line_length
-        # self.track_video_progress_window.initial_pixel_search = self.initial_pixel_search
-        # self.track_video_progress_window.range_angles = self.range_angles
-        # self.track_video_progress_window.background_calculation_method = self.background_calculation_method
-        # self.track_video_progress_window.background_calculation_frame_chunk_width = self.background_calculation_frame_chunk_width
-        # self.track_video_progress_window.background_calculation_frame_chunk_height = self.background_calculation_frame_chunk_height
-        # self.track_video_progress_window.background_calculation_frames_to_skip = self.background_calculation_frames_to_skip
-        # self.track_video_progress_window.video_n_frames = self.video_n_frames
         self.track_video_progress_window.show()
         self.track_video_progress_window.trigger_track_video()
         self.track_video_progress_window.track_video_progress_finished.connect(self.update_track_video_buttons)
@@ -2935,7 +2908,6 @@ class TrackingContent(QMainWindow):
 
     # Defining Event Functions
     def event_preview_frame_window_label_mouse_clicked(self, event):
-        print(event.x(), event.y())
         if self.magnify_frame:
             self.initial_mouse_position = (event.x(), event.y())
             if qApp.mouseButtons() & Qt.LeftButton:
@@ -2964,7 +2936,13 @@ class TrackingContent(QMainWindow):
                     if self.preview_frame_window_label_size[1] > self.preview_frame_window_size[1]:
                         self.preview_frame_window.verticalScrollBar().setValue(self.preview_frame_window.verticalScrollBar().value() - new_frame_pos[1])
         if self.circular_crop_frame:
-            print(self.initial_mouse_position)
+            if qApp.mouseButtons() & Qt.LeftButton:
+                box_size = (event.x() - self.initial_mouse_position[0], event.y() - self.initial_mouse_position[1])
+                # self.circle_mask = [(((box_size[0] / 2) * np.cos(np.deg2rad(i * 45)) + (self.initial_mouse_position[0] + box_size[0])), ((box_size[1] / 2) * np.sin(np.deg2rad(i * 45)) + (self.initial_mouse_position[1] + box_size[1]))) for i in range(8)]
+                self.circle_mask = [self.inital_mouse_position, box_size]
+                self.trigger_update_preview()
+                # print(self.circle_mask)
+            # print(self.initial_mouse_position)
         event.accept()
     def event_preview_frame_window_wheel_scrolled(self, event):
         event.ignore()
