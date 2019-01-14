@@ -324,7 +324,7 @@ def annotate_tracking_results_onto_frame(frame, results, colours, line_length, e
 
     first_eye_coords, second_eye_coords, first_eye_angle, second_eye_angle, heading_coords, body_coords, heading_angle, tail_point_coords = results
     annotated_frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB).astype(np.uint8)
-    # Check whether to to an additional process to calculate eye angles.
+    # Check whether to do an additional process to calculate eye angles.
     if extended_eyes_calculation:
         # Draw a circle arround the first eye coordinates.
         annotated_frame = cv2.circle(annotated_frame, (int(round(first_eye_coords[1])), int(round(first_eye_coords[0]))), 1, colours[-2], -1)
@@ -357,10 +357,19 @@ def apply_threshold_to_frame(frame, value = 100, invert = False):
         threshold_frame = cv2.threshold(frame, value, 255, cv2.THRESH_BINARY)[1].astype(np.uint8)
     return threshold_frame
 
-def apply_circular_mask_to_frame(frame, mask, invert = False):
-    initial_coords = mask[0]
-    radius = mask[1]
-    masked_frame = np.array([np.array([frame[i][j] * 0.5 if abs(np.hypot(i - (initial_coords[0] + radius), j - (initial_coords[1] + radius))) > radius else frame[i][j] for j in range(len(frame[i]))], dtype = frame.dtype) for i in range(len(frame))], dtype = frame.dtype)
+def apply_elliptical_mask_to_frame(frame, center_x, center_y, width, height):
+    masked_frame = frame.copy()
+    Y, X = np.ogrid[:frame.shape[0], :frame.shape[1]]
+    dist_from_center = ((X - center_x) / width) ** 2 + ((Y - center_y) / height) ** 2
+    masked_frame[dist_from_center > 1] = masked_frame[dist_from_center > 1] * 0.5
+    return masked_frame
+
+def apply_rectangular_mask_to_frame(frame, center_x, center_y, width, height):
+    masked_frame = frame.copy()
+    Y, X = np.ogrid[:frame.shape[0], :frame.shape[1]]
+    x_dist_from_center = ((X - center_x) / width) ** 2 + (Y * 0)
+    y_dist_from_center = ((Y - center_y) / height) ** 2 + (X * 0)
+    masked_frame[(x_dist_from_center > 1) | (y_dist_from_center > 1)] = masked_frame[(x_dist_from_center > 1) | (y_dist_from_center > 1)] * 0.5
     return masked_frame
 
 def load_background_into_memory(background_path, convert_to_grayscale = True):
@@ -823,6 +832,7 @@ def track_tail_in_frame(frame, background, success, n_tail_points, dist_tail_poi
             else:
                 return None
     except:
+        print('Error! Could not track tail in frame.')
         return None
 
 def track_tail_in_video_with_multiprocessing(video_path, colours, n_tail_points, dist_tail_points, dist_eyes, dist_swim_bladder, init_frame_batch_size = 50, init_starting_frame = 0, save_path = None, background_path = None, save_background = False, line_length = 0, video_fps = None, n_frames = 'All', pixel_threshold = 100, frame_change_threshold = 10):

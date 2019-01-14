@@ -118,6 +118,9 @@ class TrackingContent(QMainWindow):
             self.interactive_frame_button_icon_size = (45, 45)
             self.interactive_frame_button_x_offset = 30
             self.interactive_frame_button_x_spacing = 5
+            self.crop_frame_button_x_spacing = 3
+            self.crop_frame_button_size = (30, 30)
+            self.crop_frame_button_icon_size = (25, 25)
             self.video_playback_button_size = (50, 50)
             self.video_playback_button_x_offset = 30
             self.video_playback_button_x_spacing = 5
@@ -202,6 +205,9 @@ class TrackingContent(QMainWindow):
             self.interactive_frame_button_icon_size = (40, 40)
             self.interactive_frame_button_x_offset = 10
             self.interactive_frame_button_x_spacing = 5
+            self.crop_frame_button_x_spacing = 3
+            self.crop_frame_button_size = (30, 30)
+            self.crop_frame_button_icon_size = (25, 25)
             self.video_playback_button_size = (50, 50)
             self.video_playback_button_x_offset = 30
             self.video_playback_button_x_spacing = 5
@@ -274,8 +280,9 @@ class TrackingContent(QMainWindow):
         self.previous_preview_frame_window_vertical_scroll_bar_max = None
         self.magnify_frame = False
         self.pan_frame = False
-        self.circular_crop_frame = False
-        self.circle_mask = []
+        self.elliptical_crop_frame = False
+        self.rectangular_crop_frame = False
+        self.mask = None
         self.play_video_slow_speed = False
         self.play_video_medium_speed = False
         self.play_video_max_speed = False
@@ -637,14 +644,28 @@ class TrackingContent(QMainWindow):
         self.pan_frame_button.clicked.connect(self.check_pan_frame_button)
         self.pan_frame_button.setCheckable(True)
 
-        self.circular_crop_frame_button = QPushButton(self)
-        self.circular_crop_frame_button.setIcon(QIcon('icons\\button_icon_14.png'))
-        self.circular_crop_frame_button.setIconSize(QSize(new_icon_width, new_icon_height))
+        new_icon_width = ((self.crop_frame_button_size[0] / 2560) * self.main_window_width) - (self.crop_frame_button_size[0] - self.crop_frame_button_icon_size[0])
+        new_icon_height = ((self.crop_frame_button_size[1] / 1400) * self.main_window_height) - (self.crop_frame_button_size[1] - self.crop_frame_button_icon_size[1])
+        new_width = (self.crop_frame_button_size[0] / 2560) * self.main_window_width
+        new_height = (self.crop_frame_button_size[1] / 1400) * self.main_window_height
+
+        self.elliptical_crop_frame_button = QPushButton(self)
+        self.elliptical_crop_frame_button.setIcon(QIcon('icons\\button_icon_14.png'))
+        self.elliptical_crop_frame_button.setIconSize(QSize(new_icon_width, new_icon_height))
         new_x = ((self.main_window_x_offset + self.preview_frame_number_textbox_label_size[0] + self.preview_frame_number_textbox_size[0] + self.video_playback_button_x_offset + (3 * (self.video_playback_button_x_spacing + self.video_playback_button_size[0]) + self.video_playback_button_size[0]) + self.frame_change_button_x_offset + (5 * (self.frame_change_button_x_spacing + self.frame_change_button_size[0]) + self.frame_change_button_size[0]) + self.interactive_frame_button_x_offset + (2 * (self.interactive_frame_button_x_spacing + self.interactive_frame_button_size[0]))) / 2560) * self.main_window_width
-        self.circular_crop_frame_button.move(new_x, new_y)
-        self.circular_crop_frame_button.resize(new_width, new_height)
-        self.circular_crop_frame_button.clicked.connect(self.check_circular_crop_frame_button)
-        self.circular_crop_frame_button.setCheckable(True)
+        self.elliptical_crop_frame_button.move(new_x, new_y)
+        self.elliptical_crop_frame_button.resize(new_width, new_height)
+        self.elliptical_crop_frame_button.clicked.connect(self.check_elliptical_crop_frame_button)
+        self.elliptical_crop_frame_button.setCheckable(True)
+
+        self.rectangular_crop_frame_button = QPushButton(self)
+        self.rectangular_crop_frame_button.setIcon(QIcon('icons\\button_icon_15.png'))
+        self.rectangular_crop_frame_button.setIconSize(QSize(new_icon_width, new_icon_height))
+        new_x = ((self.main_window_x_offset + self.preview_frame_number_textbox_label_size[0] + self.preview_frame_number_textbox_size[0] + self.video_playback_button_x_offset + (3 * (self.video_playback_button_x_spacing + self.video_playback_button_size[0]) + self.video_playback_button_size[0]) + self.frame_change_button_x_offset + (5 * (self.frame_change_button_x_spacing + self.frame_change_button_size[0]) + self.frame_change_button_size[0]) + self.interactive_frame_button_x_offset + (2 * (self.interactive_frame_button_x_spacing + self.interactive_frame_button_size[0])) + (1 * (self.crop_frame_button_x_spacing + self.crop_frame_button_size[0]))) / 2560) * self.main_window_width
+        self.rectangular_crop_frame_button.move(new_x, new_y)
+        self.rectangular_crop_frame_button.resize(new_width, new_height)
+        self.rectangular_crop_frame_button.clicked.connect(self.check_rectangular_crop_frame_button)
+        self.rectangular_crop_frame_button.setCheckable(True)
 
         self.update_interactive_frame_buttons(inactivate = True)
     def add_preview_parameters_window(self):
@@ -1287,7 +1308,7 @@ class TrackingContent(QMainWindow):
         self.frame_height_descriptor.setText('Frame Height: {0}'.format(self.video_frame_height))
         self.background_path_basename_descriptor.setText('Background Filename: {0}'.format(self.background_path_basename))
         self.save_path_descriptor.setText('Save Path: {0}'.format(self.save_path))
-    def update_preview_frame(self, frame, frame_width, frame_height, scaled_width = None, grayscale = True):
+    def update_preview_frame(self, frame, frame_width, frame_height, scaled_width = None, grayscale = True, preview_crop = None):
         if grayscale:
             format = QImage.Format_Indexed8
         else:
@@ -1296,13 +1317,33 @@ class TrackingContent(QMainWindow):
             scaled_width = int(self.video_frame_width / 100) * 100
         else:
             scaled_width = int(scaled_width / 100) * 100
-        self.preview_frame = QImage(frame.data, frame_width, frame_height, format)
-        if len(self.circular_mask) > 0:
-            self.preview_frame = ut.apply_circular_mask_to_frame(self.preview_frame, self.circular_mask)
-        self.preview_frame = self.preview_frame.scaledToWidth(scaled_width)
-        frame = cv2.resize(frame, dsize=(self.preview_frame.width(), self.preview_frame.height()), interpolation=cv2.INTER_CUBIC).copy()
-        self.preview_frame = QImage(frame.data, self.preview_frame.width(), self.preview_frame.height(), format)
-
+        if self.mask:
+            if frame_width > frame_height:
+                center_x = (self.mask[0][0] / self.preview_frame_window_size[0]) * frame_width
+                center_y = (self.mask[0][1] / int((frame_height / frame_width) * self.preview_frame_window_size[1])) * frame_height
+                width = (self.mask[1] / self.preview_frame_window_size[0]) * frame_width
+                height = (self.mask[2] / int((frame_height / frame_width) * self.preview_frame_window_size[1])) * frame_height
+            else:
+                center_x = (self.mask[0][0] / int((frame_width / frame_height) * self.preview_frame_window_size[0])) * frame_width
+                center_y = (self.mask[0][1] / self.preview_frame_window_size[1]) * frame_height
+                width = (self.mask[1] / int((frame_width / frame_height) * self.preview_frame_window_size[0])) * frame_width
+                height = (self.mask[2] / self.preview_frame_window_size[1]) * frame_height
+            if self.mask[3] == 'ellipse':
+                frame = ut.apply_elliptical_mask_to_frame(frame, center_x, center_y, width, height)
+            if self.mask[3] == 'rectangle':
+                frame = ut.apply_rectangular_mask_to_frame(frame, center_x, center_y, width, height)
+        if preview_crop:
+            if frame_width > frame_height:
+                new_width = int(self.preview_frame_window_size[0])
+                new_height = int((frame_height / frame_width) * self.preview_frame_window_size[1])
+            else:
+                new_width = int((frame_width / frame_height) * self.preview_frame_window_size[0])
+                new_height = int(self.preview_frame_window_size[1])
+        else:
+            new_width = scaled_width
+            new_height = int((frame_height / frame_width) * scaled_width)
+        frame = cv2.resize(frame, dsize=(new_width, new_height), interpolation=cv2.INTER_CUBIC).copy()
+        self.preview_frame = QImage(frame.data, frame.shape[1], frame.shape[0], int(frame.nbytes / frame.shape[0]), format)
     def update_preview_frame_window(self, clear = False):
         if not clear:
             self.preview_frame_window_label.setPixmap(QPixmap.fromImage(self.preview_frame))
@@ -1396,8 +1437,10 @@ class TrackingContent(QMainWindow):
                 self.magnify_frame_button.setEnabled(True)
             if not self.pan_frame_button.isEnabled():
                 self.pan_frame_button.setEnabled(True)
-            if not self.circular_crop_frame_button.isEnabled():
-                self.circular_crop_frame_button.setEnabled(True)
+            if not self.elliptical_crop_frame_button.isEnabled():
+                self.elliptical_crop_frame_button.setEnabled(True)
+            if not self.rectangular_crop_frame_button.isEnabled():
+                self.rectangular_crop_frame_button.setEnabled(True)
         if inactivate:
             if self.magnify_frame_button.isEnabled():
                 self.magnify_frame_button.setEnabled(False)
@@ -1407,8 +1450,10 @@ class TrackingContent(QMainWindow):
                 self.pan_frame_button.setEnabled(False)
                 if self.pan_frame_button.isChecked():
                     self.pan_frame_button.setChecked(False)
-            if self.circular_crop_frame_button.isEnabled():
-                self.circular_crop_frame_button.setEnabled(False)
+            if self.elliptical_crop_frame_button.isEnabled():
+                self.elliptical_crop_frame_button.setEnabled(False)
+            if self.rectangular_crop_frame_button.isEnabled():
+                self.rectangular_crop_frame_button.setEnabled(False)
         if self.magnify_frame_button.isEnabled():
             if self.magnify_frame:
                 self.magnify_frame_button.setChecked(True)
@@ -1419,11 +1464,16 @@ class TrackingContent(QMainWindow):
                 self.pan_frame_button.setChecked(True)
             else:
                 self.pan_frame_button.setChecked(False)
-        if self.circular_crop_frame_button.isEnabled():
-            if self.circular_crop_frame:
-                self.circular_crop_frame_button.setChecked(True)
+        if self.elliptical_crop_frame_button.isEnabled():
+            if self.elliptical_crop_frame:
+                self.elliptical_crop_frame_button.setChecked(True)
             else:
-                self.circular_crop_frame_button.setChecked(False)
+                self.elliptical_crop_frame_button.setChecked(False)
+        if self.rectangular_crop_frame_button.isEnabled():
+            if self.rectangular_crop_frame:
+                self.rectangular_crop_frame_button.setChecked(True)
+            else:
+                self.rectangular_crop_frame_button.setChecked(False)
     def update_frame_window_slider_position(self):
         self.frame_window_slider.setValue(self.frame_number)
     def update_tracking_parameters(self, activate = False, inactivate = False):
@@ -1910,17 +1960,17 @@ class TrackingContent(QMainWindow):
                 self.update_colour_parameters_buttons(activate = True)
                 if self.background_path:
                     self.update_preview_parameters(activate = True)
-    def trigger_update_preview(self, magnify = False, demagnify = False, label_size = None):
+    def trigger_update_preview(self, magnify = False, demagnify = False, label_size = None, preview_crop = False):
         if label_size is None:
             label_size = self.preview_frame_window_label_size[0]
         if self.preview_background:
             use_grayscale = True
             if magnify:
-                self.update_preview_frame(self.background, self.background_width, self.background_height, scaled_width = label_size + 100, grayscale = use_grayscale)
+                self.update_preview_frame(self.background, self.background_width, self.background_height, scaled_width = label_size + 100, grayscale = use_grayscale, preview_crop = preview_crop)
             if demagnify:
-                self.update_preview_frame(self.background, self.background_width, self.background_height, scaled_width = label_size - 100, grayscale = use_grayscale)
+                self.update_preview_frame(self.background, self.background_width, self.background_height, scaled_width = label_size - 100, grayscale = use_grayscale, preview_crop = preview_crop)
             if not magnify and not demagnify:
-                self.update_preview_frame(self.background, self.background_width, self.background_height, scaled_width = label_size, grayscale = use_grayscale)
+                self.update_preview_frame(self.background, self.background_width, self.background_height, scaled_width = label_size, grayscale = use_grayscale, preview_crop = preview_crop)
             self.update_preview_frame_window()
             self.update_frame_window_slider(inactivate = True)
             self.update_preview_frame_number_textbox(inactivate = True)
@@ -1938,11 +1988,11 @@ class TrackingContent(QMainWindow):
                     elif self.tracking_method == 'head_fixed_1' or self.tracking_method == 'head_fixed_2':
                         self.frame = ut.apply_threshold_to_frame(self.frame, self.eyes_threshold, invert = self.invert_threshold)
                     if magnify:
-                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = label_size + 100, grayscale = use_grayscale)
+                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = label_size + 100, grayscale = use_grayscale, preview_crop = preview_crop)
                     if demagnify:
-                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = label_size - 100, grayscale = use_grayscale)
+                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = label_size - 100, grayscale = use_grayscale, preview_crop = preview_crop)
                     if not magnify and not demagnify:
-                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = label_size, grayscale = use_grayscale)
+                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = label_size, grayscale = use_grayscale, preview_crop = preview_crop)
                     self.update_preview_frame_window()
                     self.update_frame_window_slider(activate = True)
                     self.update_preview_frame_number_textbox(activate = True)
@@ -1969,11 +2019,11 @@ class TrackingContent(QMainWindow):
                             self.frame = ut.annotate_tracking_results_onto_frame(self.frame, results, self.colours, self.heading_line_length, self.extended_eyes_calculation, self.eyes_line_length)
                             use_grayscale = False
                     if magnify:
-                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = label_size + 100, grayscale = use_grayscale)
+                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = label_size + 100, grayscale = use_grayscale, preview_crop = preview_crop)
                     if demagnify:
-                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = label_size - 100, grayscale = use_grayscale)
+                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = label_size - 100, grayscale = use_grayscale, preview_crop = preview_crop)
                     if not magnify and not demagnify:
-                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = label_size, grayscale = use_grayscale)
+                        self.update_preview_frame(self.frame, self.video_frame_width, self.video_frame_height, scaled_width = label_size, grayscale = use_grayscale, preview_crop = preview_crop)
                     self.update_preview_frame_window()
                     self.update_frame_window_slider(activate = True)
                     self.update_preview_frame_number_textbox(activate = True)
@@ -2679,9 +2729,12 @@ class TrackingContent(QMainWindow):
             if self.pan_frame_button.isChecked():
                 self.pan_frame = False
                 self.pan_frame_button.setChecked(False)
-            if self.circular_crop_frame_button.isChecked():
-                self.circular_crop_frame = False
-                self.circular_crop_frame_button.setChecked(False)
+            if self.elliptical_crop_frame_button.isChecked():
+                self.elliptical_crop_frame = False
+                self.elliptical_crop_frame_button.setChecked(False)
+            if self.rectangular_crop_frame_button.isChecked():
+                self.rectangular_crop_frame = False
+                self.rectangular_crop_frame_button.setChecked(False)
         else:
             self.magnify_frame = False
     def check_pan_frame_button(self):
@@ -2690,24 +2743,46 @@ class TrackingContent(QMainWindow):
             if self.magnify_frame_button.isChecked():
                 self.magnify_frame = False
                 self.magnify_frame_button.setChecked(False)
-            if self.circular_crop_frame_button.isChecked():
-                self.circular_crop_frame = False
-                self.circular_crop_frame_button.setChecked(False)
+            if self.elliptical_crop_frame_button.isChecked():
+                self.elliptical_crop_frame = False
+                self.elliptical_crop_frame_button.setChecked(False)
+            if self.rectangular_crop_frame_button.isChecked():
+                self.rectangular_crop_frame = False
+                self.rectangular_crop_frame_button.setChecked(False)
         else:
             self.pan_frame = False
-    def check_circular_crop_frame_button(self):
-        if self.circular_crop_frame_button.isChecked():
-            self.circular_crop_frame = True
+    def check_elliptical_crop_frame_button(self):
+        if self.elliptical_crop_frame_button.isChecked():
+            self.elliptical_crop_frame = True
             if self.magnify_frame_button.isChecked():
                 self.magnify_frame = False
                 self.magnify_frame_button.setChecked(False)
             if self.pan_frame_button.isChecked():
                 self.pan_frame = False
                 self.pan_frame_button.setChecked(False)
-            self.trigger_update_preview(label_size = self.video_frame_width)
+            if self.rectangular_crop_frame_button.isChecked():
+                self.rectangular_crop_frame = False
+                self.rectangular_crop_frame_button.setChecked(False)
+            self.trigger_update_preview(label_size = self.video_frame_width, preview_crop = True)
             self.update_preview_frame_window_scroll_bars()
         else:
-            self.circular_crop_frame = False
+            self.elliptical_crop_frame = False
+    def check_rectangular_crop_frame_button(self):
+        if self.rectangular_crop_frame_button.isChecked():
+            self.rectangular_crop_frame = True
+            if self.magnify_frame_button.isChecked():
+                self.magnify_frame = False
+                self.magnify_frame_button.setChecked(False)
+            if self.pan_frame_button.isChecked():
+                self.pan_frame = False
+                self.pan_frame_button.setChecked(False)
+            if self.elliptical_crop_frame_button.isChecked():
+                self.elliptical_crop_frame = False
+                self.elliptical_crop_frame_button.setChecked(False)
+            self.trigger_update_preview(label_size = self.video_frame_width, preview_crop = True)
+            self.update_preview_frame_window_scroll_bars()
+        else:
+            self.rectangular_crop_frame = False
     def check_pause_video_button(self):
         if not self.play_video_slow_speed and not self.play_video_medium_speed and not self.play_video_max_speed:
             self.pause_video_button.setChecked(True)
@@ -2923,8 +2998,8 @@ class TrackingContent(QMainWindow):
                 current_midpoint_y = (self.preview_frame_window.verticalScrollBar().pageStep() / 2) + self.preview_frame_window.verticalScrollBar().value()
                 new_y = self.initial_mouse_position[1] - current_midpoint_y + self.preview_frame_window.verticalScrollBar().value()
                 self.preview_frame_window.verticalScrollBar().setValue(new_y)
-        if self.pan_frame or self.circular_crop_frame:
-            self.initial_mouse_position = (event.x(), event.y())
+        if self.pan_frame or self.elliptical_crop_frame or self.rectangular_crop_frame:
+            self.initial_mouse_position = [event.x(), event.y()]
         event.accept()
     def event_preview_frame_window_label_mouse_moved(self, event):
         if self.pan_frame:
@@ -2935,14 +3010,17 @@ class TrackingContent(QMainWindow):
                         self.preview_frame_window.horizontalScrollBar().setValue(self.preview_frame_window.horizontalScrollBar().value() - new_frame_pos[0])
                     if self.preview_frame_window_label_size[1] > self.preview_frame_window_size[1]:
                         self.preview_frame_window.verticalScrollBar().setValue(self.preview_frame_window.verticalScrollBar().value() - new_frame_pos[1])
-        if self.circular_crop_frame:
+        if self.elliptical_crop_frame or self.rectangular_crop_frame:
             if qApp.mouseButtons() & Qt.LeftButton:
-                box_size = (event.x() - self.initial_mouse_position[0], event.y() - self.initial_mouse_position[1])
-                # self.circle_mask = [(((box_size[0] / 2) * np.cos(np.deg2rad(i * 45)) + (self.initial_mouse_position[0] + box_size[0])), ((box_size[1] / 2) * np.sin(np.deg2rad(i * 45)) + (self.initial_mouse_position[1] + box_size[1]))) for i in range(8)]
-                self.circle_mask = [self.inital_mouse_position, box_size]
-                self.trigger_update_preview()
-                # print(self.circle_mask)
-            # print(self.initial_mouse_position)
+                center = [self.initial_mouse_position[0] + (event.x() - self.initial_mouse_position[0]) / 2, self.initial_mouse_position[1] + (event.y() - self.initial_mouse_position[1]) / 2]
+                width = (event.x() - self.initial_mouse_position[0]) / 2
+                height = (event.y() - self.initial_mouse_position[1]) / 2
+                if width != 0 and height != 0:
+                    if self.elliptical_crop_frame:
+                        self.mask = [center, width, height, 'ellipse']
+                    if self.rectangular_crop_frame:
+                        self.mask = [center, width, height, 'rectangle']
+                self.trigger_update_preview(preview_crop = True)
         event.accept()
     def event_preview_frame_window_wheel_scrolled(self, event):
         event.ignore()
