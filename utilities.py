@@ -234,7 +234,7 @@ def calculate_background(video_path, method = 'brightest', save_path = None, sav
                 cv2.imwrite(background_path, background)
     except:
         # Errors that may occur during the background calculation are handled.
-        print('\nError calculating background')
+        print('Error! Could not calculate background.')
         if capture.isOpened():
             capture.release()
         return None
@@ -362,6 +362,13 @@ def apply_elliptical_mask_to_frame(frame, center_x, center_y, width, height):
     Y, X = np.ogrid[:frame.shape[0], :frame.shape[1]]
     dist_from_center = ((X - center_x) / width) ** 2 + ((Y - center_y) / height) ** 2
     masked_frame[dist_from_center > 1] = masked_frame[dist_from_center > 1] * 0.5
+    if len(frame.shape) == 2:
+        masked_frame = cv2.cvtColor(masked_frame, cv2.COLOR_GRAY2BGR)
+    annotation_color = (255, 0, 0)
+    edge_of_circle = ((X - center_x) / (abs(width) - 1)) ** 2 + ((Y - center_y) / (abs(height) - 1)) ** 2
+    masked_frame[(dist_from_center < 1) & (edge_of_circle > 1)] = annotation_color
+    if abs(width) > 4 and abs(height) > 4:
+        masked_frame[int(center_y - 2) : int(center_y + 3), int(center_x - 2) : int(center_x + 3)] = annotation_color
     return masked_frame
 
 def apply_rectangular_mask_to_frame(frame, center_x, center_y, width, height):
@@ -370,6 +377,14 @@ def apply_rectangular_mask_to_frame(frame, center_x, center_y, width, height):
     x_dist_from_center = ((X - center_x) / width) ** 2 + (Y * 0)
     y_dist_from_center = ((Y - center_y) / height) ** 2 + (X * 0)
     masked_frame[(x_dist_from_center > 1) | (y_dist_from_center > 1)] = masked_frame[(x_dist_from_center > 1) | (y_dist_from_center > 1)] * 0.5
+    if len(frame.shape) == 2:
+        masked_frame = cv2.cvtColor(masked_frame, cv2.COLOR_GRAY2BGR)
+    x_edges_of_rectangle = ((X - center_x) / (abs(width) - 1)) ** 2 + (Y * 0)
+    y_edges_of_rectangle = ((Y - center_y) / (abs(height) - 1)) ** 2 + (X * 0)
+    annotation_color = (255, 0, 0)
+    masked_frame[((x_dist_from_center < 1) & (y_dist_from_center < 1) & (x_edges_of_rectangle > 1) | (x_dist_from_center < 1) & (y_dist_from_center < 1) & (y_edges_of_rectangle > 1))] = annotation_color
+    if abs(width) > 4 and abs(height) > 4:
+        masked_frame[int(center_y - 2) : int(center_y + 3), int(center_x - 2) : int(center_x + 3)] = annotation_color
     return masked_frame
 
 def load_background_into_memory(background_path, convert_to_grayscale = True):
@@ -497,7 +512,7 @@ def preview_tracking_results(video_path, colours, n_tail_points, dist_tail_point
     video_n_frames = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
 
     if frame_number >= video_n_frames:
-        print('Frame number provided exceeds the total number of frames in the video. Setting the frame number to 0.')
+        print('Warning! Frame number provided exceeds the total number of frames in the video. Setting the frame number to 0.')
         frame_number = 0
 
     # Set the frame position to start.
@@ -633,7 +648,7 @@ def preview_tracking_results(video_path, colours, n_tail_points, dist_tail_point
             cv2.destroyAllWindows()
         except:
             # Handles any errors that occur throughout tracking.
-            print('Error: something went wrong during tracking!')
+            print('Error! Could not track tail in video.')
 
     # Unload the video from memory.
     capture.release()
@@ -746,7 +761,6 @@ def track_tail_in_frame(frame, background, success, n_tail_points, dist_tail_poi
                         first_eye_coords = [np.where(frame == np.max(frame))[0][0], np.where(frame == np.max(frame))[1][0]]
                     # Calculate the next brightest pixel that lies on the circle drawn around the first eye coordinates and has a radius equal to the distance between the eyes.
                     second_eye_coords = calculate_next_coords(first_eye_coords, dist_eyes, frame, method = initial_pixel_search, n_angles = 100, range_angles = 2 * np.pi, tail_calculation = False)
-                    print('First call: {0}{1}'.format(first_eye_coords, second_eye_coords))
                     # Check whether to to an additional process to calculate eye angles.
                     if extended_eyes_calculation:
                         # Calculate the angle between the two eyes.
@@ -769,7 +783,6 @@ def track_tail_in_frame(frame, background, success, n_tail_points, dist_tail_poi
                                 M = cv2.moments(contours[i])
                                 second_eye_coords = [int(round(M['m01']/M['m00'])), int(round(M['m10']/M['m00']))]
                                 second_eye_angle = cv2.fitEllipse(contours[i])[2] * np.pi / 180
-                    print('Second call: {0}{1}'.format(first_eye_coords, second_eye_coords))
                     # Find the midpoint of the line that connects both eyes.
                     heading_coords = [(first_eye_coords[0] + second_eye_coords[0]) / 2, (first_eye_coords[1] + second_eye_coords[1]) / 2]
                     if tracking_method == 'head_fixed_1':
@@ -810,7 +823,6 @@ def track_tail_in_frame(frame, background, success, n_tail_points, dist_tail_poi
                                 second_eye_angle += np.pi
                         if np.isnan(first_eye_angle) or np.isnan(second_eye_angle):
                             return None
-                    print('Third call: {0}{1}'.format(first_eye_coords, second_eye_coords))
                     # Iterate through the number of tail points.
                     for m in range(1, n_tail_points + 1):
                         # Check if this is the first tail point.
@@ -854,16 +866,16 @@ def track_tail_in_video_with_multiprocessing(video_path, colours, n_tail_points,
         n_frames = video_n_frames
 
     if n_frames > video_n_frames:
-        print('The number of frames requested to track exceeds the total number of frames in the video.')
+        print('Warning! The number of frames requested to track exceeds the total number of frames in the video. Setting the number of frames to track to the total number of frames in the video.')
         n_frames = video_n_frames
 
     if starting_frame >= video_n_frames:
-        print('Starting frame number provided exceeds the total number of frames in the video. Setting the starting frame number to 0.')
+        print('Warning! Starting frame number provided exceeds the total number of frames in the video. Setting the starting frame number to 0.')
         starting_frame = 0
         n_frames = video_n_frames
 
     if starting_frame + n_frames > video_n_frames:
-        print('The number of frames requested to track plus the number of initial frames to offset exceeds the total number of frames in the video. Keeping the initial frames to offset and tracking the remaining frames.')
+        print('Warning! The number of frames requested to track plus the number of initial frames to offset exceeds the total number of frames in the video. Keeping the initial frames to offset and tracking the remaining frames.')
         n_frames = video_n_frames - starting_frame
 
     batch_iterations = int((video_n_frames - starting_frame) / frame_batch_size)
@@ -943,7 +955,7 @@ def track_tail_in_video_without_multiprocessing(video_path, colours, n_tail_poin
         n_frames = video_n_frames
 
     if n_frames > video_n_frames:
-        print('The number of frames requested to track exceeds the total number of frames in the video.')
+        print('Warning! The number of frames requested to track exceeds the total number of frames in the video. Setting the number of frames to track to the total number of frames in the video.')
         n_frames = video_n_frames
 
     if starting_frame >= video_n_frames:
@@ -1094,12 +1106,11 @@ def track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes,
         else:
             background = cv2.imread(background_path, cv2.IMREAD_GRAYSCALE).astype(np.uint8)
 
-    # print(len(background), len(background[0]), len(frame), len(frame[0]))
     video_n_frames = get_total_frame_number_from_video(video_path)
     frame_size = get_frame_size_from_video(video_path)
 
     if background.shape != frame_size:
-        print('Error! Background shape does not match frame shape. Recalculating background...')
+        print('Warning! Background shape does not match frame shape. Recalculating background.')
         background = calculate_background(video_path, method = background_calculation_method, chunk_size = [background_calculation_frame_chunk_width, background_calculation_frame_chunk_height],
                                             frames_to_skip = background_calculation_frames_to_skip, save_path = save_path, save_background = save_background, print_progress = print_progress)
 
@@ -1112,16 +1123,16 @@ def track_video(video_path, colours, n_tail_points, dist_tail_points, dist_eyes,
         n_frames = video_n_frames
 
     if n_frames > video_n_frames:
-        print('The number of frames requested to track exceeds the total number of frames in the video.')
+        print('Warning! The number of frames requested to track exceeds the total number of frames in the video. Setting the number of frames to track to the total number of frames in the video.')
         n_frames = video_n_frames
 
     if starting_frame >= video_n_frames:
-        print('Starting frame number provided exceeds the total number of frames in the video. Setting the starting frame number to 0.')
+        print('Warning! Starting frame number provided exceeds the total number of frames in the video. Setting the starting frame number to 0.')
         starting_frame = 0
         n_frames = video_n_frames
 
     if starting_frame + n_frames > video_n_frames:
-        print('The number of frames requested to track plus the number of initial frames to offset exceeds the total number of frames in the video. Keeping the initial frames to offset and tracking the remaining frames.')
+        print('Warning! The number of frames requested to track plus the number of initial frames to offset exceeds the total number of frames in the video. Keeping the initial frames to offset and tracking the remaining frames.')
         n_frames = video_n_frames - starting_frame
 
     # Open the video path.
