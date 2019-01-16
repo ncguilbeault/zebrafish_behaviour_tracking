@@ -111,18 +111,18 @@ class TrackingContent(QMainWindow):
             self.video_time_textbox_label_size = (160, 25)
             self.video_time_textbox_size = (120, 25)
             self.frame_change_button_size = (50, 50)
-            self.frame_change_button_x_offset = 30
+            self.frame_change_button_x_offset = 10
             self.frame_change_button_x_spacing = 5
             self.frame_change_button_icon_size = (60, 60)
             self.interactive_frame_button_size = (50, 50)
             self.interactive_frame_button_icon_size = (45, 45)
-            self.interactive_frame_button_x_offset = 30
+            self.interactive_frame_button_x_offset = 10
             self.interactive_frame_button_x_spacing = 5
             self.crop_frame_button_x_spacing = 3
             self.crop_frame_button_size = (30, 30)
             self.crop_frame_button_icon_size = (25, 25)
             self.video_playback_button_size = (50, 50)
-            self.video_playback_button_x_offset = 30
+            self.video_playback_button_x_offset = 10
             self.video_playback_button_x_spacing = 5
             self.video_playback_button_icon_size = (60, 60)
             self.preview_parameters_window_size = (450, 330)
@@ -282,6 +282,7 @@ class TrackingContent(QMainWindow):
         self.pan_frame = False
         self.elliptical_crop_frame = False
         self.rectangular_crop_frame = False
+        self.pan_crop = False
         self.mask = None
         self.play_video_slow_speed = False
         self.play_video_medium_speed = False
@@ -644,10 +645,10 @@ class TrackingContent(QMainWindow):
         self.pan_frame_button.clicked.connect(self.check_pan_frame_button)
         self.pan_frame_button.setCheckable(True)
 
-        new_icon_width = ((self.crop_frame_button_size[0] / 2560) * self.main_window_width) - (self.crop_frame_button_size[0] - self.crop_frame_button_icon_size[0])
-        new_icon_height = ((self.crop_frame_button_size[1] / 1400) * self.main_window_height) - (self.crop_frame_button_size[1] - self.crop_frame_button_icon_size[1])
-        new_width = (self.crop_frame_button_size[0] / 2560) * self.main_window_width
-        new_height = (self.crop_frame_button_size[1] / 1400) * self.main_window_height
+        # new_icon_width = ((self.crop_frame_button_size[0] / 2560) * self.main_window_width) - (self.crop_frame_button_size[0] - self.crop_frame_button_icon_size[0])
+        # new_icon_height = ((self.crop_frame_button_size[1] / 1400) * self.main_window_height) - (self.crop_frame_button_size[1] - self.crop_frame_button_icon_size[1])
+        # new_width = (self.crop_frame_button_size[0] / 2560) * self.main_window_width
+        # new_height = (self.crop_frame_button_size[1] / 1400) * self.main_window_height
 
         self.elliptical_crop_frame_button = QPushButton(self)
         self.elliptical_crop_frame_button.setIcon(QIcon('icons\\button_icon_14.png'))
@@ -661,7 +662,7 @@ class TrackingContent(QMainWindow):
         self.rectangular_crop_frame_button = QPushButton(self)
         self.rectangular_crop_frame_button.setIcon(QIcon('icons\\button_icon_15.png'))
         self.rectangular_crop_frame_button.setIconSize(QSize(new_icon_width, new_icon_height))
-        new_x = ((self.main_window_x_offset + self.preview_frame_number_textbox_label_size[0] + self.preview_frame_number_textbox_size[0] + self.video_playback_button_x_offset + (3 * (self.video_playback_button_x_spacing + self.video_playback_button_size[0]) + self.video_playback_button_size[0]) + self.frame_change_button_x_offset + (5 * (self.frame_change_button_x_spacing + self.frame_change_button_size[0]) + self.frame_change_button_size[0]) + self.interactive_frame_button_x_offset + (2 * (self.interactive_frame_button_x_spacing + self.interactive_frame_button_size[0])) + (1 * (self.crop_frame_button_x_spacing + self.crop_frame_button_size[0]))) / 2560) * self.main_window_width
+        new_x = ((self.main_window_x_offset + self.preview_frame_number_textbox_label_size[0] + self.preview_frame_number_textbox_size[0] + self.video_playback_button_x_offset + (3 * (self.video_playback_button_x_spacing + self.video_playback_button_size[0]) + self.video_playback_button_size[0]) + self.frame_change_button_x_offset + (5 * (self.frame_change_button_x_spacing + self.frame_change_button_size[0]) + self.frame_change_button_size[0]) + self.interactive_frame_button_x_offset + (3 * (self.interactive_frame_button_x_spacing + self.interactive_frame_button_size[0]))) / 2560) * self.main_window_width
         self.rectangular_crop_frame_button.move(new_x, new_y)
         self.rectangular_crop_frame_button.resize(new_width, new_height)
         self.rectangular_crop_frame_button.clicked.connect(self.check_rectangular_crop_frame_button)
@@ -1318,19 +1319,20 @@ class TrackingContent(QMainWindow):
         else:
             scaled_width = int(scaled_width / 100) * 100
         if self.mask:
+            format = QImage.Format_RGB888
             if frame_width > frame_height:
-                center_x = (self.mask[0][0] / self.preview_frame_window_size[0]) * frame_width
-                center_y = (self.mask[0][1] / int((frame_height / frame_width) * self.preview_frame_window_size[1])) * frame_height
-                width = (self.mask[1] / self.preview_frame_window_size[0]) * frame_width
-                height = (self.mask[2] / int((frame_height / frame_width) * self.preview_frame_window_size[1])) * frame_height
+                center_x = (self.mask[0] / self.preview_frame_window_size[0]) * frame_width
+                center_y = (self.mask[1] / int((frame_height / frame_width) * self.preview_frame_window_size[1])) * frame_height
+                width = (self.mask[2] / self.preview_frame_window_size[0]) * frame_width
+                height = (self.mask[3] / int((frame_height / frame_width) * self.preview_frame_window_size[1])) * frame_height
             else:
-                center_x = (self.mask[0][0] / int((frame_width / frame_height) * self.preview_frame_window_size[0])) * frame_width
-                center_y = (self.mask[0][1] / self.preview_frame_window_size[1]) * frame_height
-                width = (self.mask[1] / int((frame_width / frame_height) * self.preview_frame_window_size[0])) * frame_width
-                height = (self.mask[2] / self.preview_frame_window_size[1]) * frame_height
-            if self.mask[3] == 'ellipse':
+                center_x = (self.mask[0] / int((frame_width / frame_height) * self.preview_frame_window_size[0])) * frame_width
+                center_y = (self.mask[1] / self.preview_frame_window_size[1]) * frame_height
+                width = (self.mask[2] / int((frame_width / frame_height) * self.preview_frame_window_size[0])) * frame_width
+                height = (self.mask[3] / self.preview_frame_window_size[1]) * frame_height
+            if self.mask[4] == 'ellipse':
                 frame = ut.apply_elliptical_mask_to_frame(frame, center_x, center_y, width, height)
-            if self.mask[3] == 'rectangle':
+            if self.mask[4] == 'rectangle':
                 frame = ut.apply_rectangular_mask_to_frame(frame, center_x, center_y, width, height)
         if preview_crop:
             if frame_width > frame_height:
@@ -1925,18 +1927,20 @@ class TrackingContent(QMainWindow):
             self.get_video_attributes()
             self.update_descriptors()
             if len(self.loaded_videos_and_parameters_dict) == 0:
-                self.loaded_videos_and_parameters_dict[self.video_path] = {  'descriptors' : None,
-                                                                        'tracking_parameters' : None,
-                                                                        'colour_parameters' : None,
-                                                                        'background' : None}
+                self.loaded_videos_and_parameters_dict[self.video_path] = {     'descriptors'           :   None,
+                                                                                'tracking_parameters'   :   None,
+                                                                                'colour_parameters'     :   None,
+                                                                                'background'            :   None,
+                                                                                'mask'                  :   None    }
                 self.loaded_videos_listbox.addItem(self.video_path)
                 self.loaded_videos_listbox.setCurrentRow(0)
             else:
                 if self.video_path not in self.loaded_videos_and_parameters_dict.keys():
-                    self.loaded_videos_and_parameters_dict[self.video_path] = {  'descriptors' : None,
-                                                                            'tracking_parameters' : None,
-                                                                            'colour_parameters' : None,
-                                                                            'background' : None}
+                    self.loaded_videos_and_parameters_dict[self.video_path] = { 'descriptors'           :   None,
+                                                                                'tracking_parameters'   :   None,
+                                                                                'colour_parameters'     :   None,
+                                                                                'background'            :   None,
+                                                                                'mask'                  :   None    }
                     self.loaded_videos_listbox.addItem(self.video_path)
                     self.loaded_videos_listbox.setCurrentRow(self.loaded_videos_listbox.count() - 1)
                 else:
@@ -2162,6 +2166,19 @@ class TrackingContent(QMainWindow):
         if self.loaded_videos_and_parameters_dict[self.video_path]['background'] is None:
             self.loaded_videos_and_parameters_dict[self.video_path]['background'] = self.background
 
+        if self.loaded_videos_and_parameters_dict[self.video_path]['mask'] is None:
+            if self.video_frame_width > self.video_frame_height:
+                center_x = (self.mask[0] / self.preview_frame_window_size[0]) * self.video_frame_width
+                center_y = (self.mask[1] / int((self.video_frame_height / self.video_frame_width) * self.preview_frame_window_size[1])) * self.video_frame_height
+                width = (self.mask[2] / self.preview_frame_window_size[0]) * self.video_frame_width
+                height = (self.mask[3] / int((self.video_frame_height / self.video_frame_width) * self.preview_frame_window_size[1])) * self.video_frame_height
+            else:
+                center_x = (self.mask[0] / int((self.video_frame_width / self.video_frame_height) * self.preview_frame_window_size[0])) * self.video_frame_width
+                center_y = (self.mask[1] / self.preview_frame_window_size[1]) * self.video_frame_height
+                width = (self.mask[2] / int((self.video_frame_width / self.video_frame_height) * self.preview_frame_window_size[0])) * self.video_frame_width
+                height = (self.mask[3] / self.preview_frame_window_size[1]) * self.video_frame_height
+            self.loaded_videos_and_parameters_dict[self.video_path]['mask'] = [center_x, center_y, width, height, self.mask[4]]
+
         self.track_video_progress_window = TrackVideoProgressWindow()
         self.track_video_progress_window.loaded_videos_and_parameters_dict = self.loaded_videos_and_parameters_dict
         self.track_video_progress_window.show()
@@ -2305,51 +2322,6 @@ class TrackingContent(QMainWindow):
         if self.track_all_videos_button.isEnabled():
             self.track_all_videos_button.setEnabled(False)
 
-        # if self.loaded_videos_and_parameters_dict[self.video_path]['descriptors'] is None:
-        #     self.descriptors_dict['video_path_basename'] = self.video_path_basename
-        #     self.descriptors_dict['video_path_folder'] = self.video_path_folder
-        #     self.descriptors_dict['video_n_frames'] = self.video_n_frames
-        #     self.descriptors_dict['video_fps'] = self.video_fps
-        #     self.descriptors_dict['video_frame_width'] = self.video_frame_width
-        #     self.descriptors_dict['video_frame_height'] = self.video_frame_height
-        #     self.descriptors_dict['background_path_basename'] = self.background_path_basename
-        #     self.descriptors_dict['save_path'] = self.save_path
-        #     self.loaded_videos_and_parameters_dict[self.video_path]['descriptors'] = self.descriptors_dict.copy()
-        #
-        # if self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters'] is None:
-        #     self.tracking_parameters_dict['n_tail_points'] = self.n_tail_points
-        #     self.tracking_parameters_dict['dist_tail_points'] = self.dist_tail_points
-        #     self.tracking_parameters_dict['dist_eyes'] = self.dist_eyes
-        #     self.tracking_parameters_dict['dist_swim_bladder'] = self.dist_swim_bladder
-        #     self.tracking_parameters_dict['tracking_method'] = self.tracking_method
-        #     self.tracking_parameters_dict['save_video'] = self.save_video
-        #     self.tracking_parameters_dict['median_blur'] = self.median_blur
-        #     self.tracking_parameters_dict['extended_eyes_calculation'] = self.extended_eyes_calculation
-        #     self.tracking_parameters_dict['n_frames'] = self.n_frames
-        #     self.tracking_parameters_dict['starting_frame'] = self.starting_frame
-        #     self.tracking_parameters_dict['save_path'] = self.save_path
-        #     self.tracking_parameters_dict['background_path'] = self.background_path
-        #     self.tracking_parameters_dict['save_background'] = self.save_background
-        #     self.tracking_parameters_dict['heading_line_length'] = self.heading_line_length
-        #     self.tracking_parameters_dict['video_fps'] = self.video_fps
-        #     self.tracking_parameters_dict['pixel_threshold'] = self.pixel_threshold
-        #     self.tracking_parameters_dict['frame_change_threshold'] = self.frame_change_threshold
-        #     self.tracking_parameters_dict['eyes_threshold'] = self.eyes_threshold
-        #     self.tracking_parameters_dict['initial_pixel_search'] = self.initial_pixel_search
-        #     self.tracking_parameters_dict['invert_threshold'] = self.invert_threshold
-        #     self.tracking_parameters_dict['range_angles'] = self.range_angles
-        #     self.tracking_parameters_dict['background_calculation_method'] = self.background_calculation_method
-        #     self.tracking_parameters_dict['background_calculation_frame_chunk_width'] = self.background_calculation_frame_chunk_width
-        #     self.tracking_parameters_dict['background_calculation_frame_chunk_height'] = self.background_calculation_frame_chunk_height
-        #     self.tracking_parameters_dict['background_calculation_frames_to_skip'] = self.background_calculation_frames_to_skip
-        #     self.loaded_videos_and_parameters_dict[self.video_path]['tracking_parameters'] = self.tracking_parameters_dict.copy()
-        #
-        # if self.loaded_videos_and_parameters_dict[self.video_path]['colour_parameters'] is None:
-        #     self.loaded_videos_and_parameters_dict[self.video_path]['colour_parameters'] = self.colours
-        #
-        # if self.loaded_videos_and_parameters_dict[self.video_path]['background'] is None:
-        #     self.loaded_videos_and_parameters_dict[self.video_path]['background'] = self.background
-
         self.track_all_videos_progress_window = TrackAllVideosProgressWindow()
         self.track_all_videos_progress_window.loaded_videos_and_parameters_dict = self.loaded_videos_and_parameters_dict
         self.track_all_videos_progress_window.track_all_videos_progress_finished.connect(self.update_track_video_buttons)
@@ -2398,6 +2370,18 @@ class TrackingContent(QMainWindow):
             self.loaded_videos_and_parameters_dict[self.video_path]['colour_parameters'] = self.colours.copy()
             if self.background is not None:
                 self.loaded_videos_and_parameters_dict[self.video_path]['background'] = self.background.copy()
+            if self.mask is not None:
+                if self.video_frame_width > self.video_frame_height:
+                    center_x = (self.mask[0] / self.preview_frame_window_size[0]) * self.video_frame_width
+                    center_y = (self.mask[1] / int((self.video_frame_height / self.video_frame_width) * self.preview_frame_window_size[1])) * self.video_frame_height
+                    width = (self.mask[2] / self.preview_frame_window_size[0]) * self.video_frame_width
+                    height = (self.mask[3] / int((self.video_frame_height / self.video_frame_width) * self.preview_frame_window_size[1])) * self.video_frame_height
+                else:
+                    center_x = (self.mask[0] / int((self.video_frame_width / self.video_frame_height) * self.preview_frame_window_size[0])) * self.video_frame_width
+                    center_y = (self.mask[1] / self.preview_frame_window_size[1]) * self.video_frame_height
+                    width = (self.mask[2] / int((self.video_frame_width / self.video_frame_height) * self.preview_frame_window_size[0])) * self.video_frame_width
+                    height = (self.mask[3] / self.preview_frame_window_size[1]) * self.video_frame_height
+                self.loaded_videos_and_parameters_dict[self.video_path]['mask'] = [center_x, center_y, width, height, self.mask[4]]
     def trigger_reload_parameters(self):
         if self.video_path is not None and self.video_path != '':
 
@@ -2406,6 +2390,7 @@ class TrackingContent(QMainWindow):
             self.colours = self.loaded_videos_and_parameters_dict[self.video_path]['colour_parameters'].copy()
             self.update_colours()
             self.background = self.loaded_videos_and_parameters_dict[self.video_path]['background'].copy()
+            self.mask = self.loaded_videos_and_parameters_dict[self.video_path]['mask'].copy()
 
             self.video_path_basename = self.descriptors_dict['video_path_basename']
             self.video_path_folder = self.descriptors_dict['video_path_folder']
@@ -2462,18 +2447,20 @@ class TrackingContent(QMainWindow):
                     self.get_video_attributes()
                     self.update_descriptors()
                     if len(self.loaded_videos_and_parameters_dict) == 0:
-                        self.loaded_videos_and_parameters_dict[self.video_path] = {  'descriptors' : None,
-                                                                                'tracking_parameters' : None,
-                                                                                'colour_parameters' : None,
-                                                                                'background' : None}
+                        self.loaded_videos_and_parameters_dict[self.video_path] = {     'descriptors'           :   None,
+                                                                                        'tracking_parameters'   :   None,
+                                                                                        'colour_parameters'     :   None,
+                                                                                        'background'            :   None,
+                                                                                        'mask'                  :   None    }
                         self.loaded_videos_listbox.addItem(self.video_path)
                         self.loaded_videos_listbox.setCurrentRow(0)
                     else:
                         if self.video_path not in self.loaded_videos_and_parameters_dict.keys():
-                            self.loaded_videos_and_parameters_dict[self.video_path] = {  'descriptors' : None,
-                                                                                    'tracking_parameters' : None,
-                                                                                    'colour_parameters' : None,
-                                                                                    'background' : None}
+                            self.loaded_videos_and_parameters_dict[self.video_path] = { 'descriptors'           :   None,
+                                                                                        'tracking_parameters'   :   None,
+                                                                                        'colour_parameters'     :   None,
+                                                                                        'background'            :   None,
+                                                                                        'mask'                  :   None    }
                             self.loaded_videos_listbox.addItem(self.video_path)
                             self.loaded_videos_listbox.setCurrentRow(self.loaded_videos_listbox.count() - 1)
                         else:
@@ -2510,10 +2497,11 @@ class TrackingContent(QMainWindow):
                             self.get_video_attributes()
                             self.update_descriptors()
                             if self.video_path not in self.loaded_videos_and_parameters_dict.keys():
-                                self.loaded_videos_and_parameters_dict[self.video_path] = {  'descriptors' : None,
-                                                                                        'tracking_parameters' : None,
-                                                                                        'colour_parameters' : None,
-                                                                                        'background' : None}
+                                self.loaded_videos_and_parameters_dict[self.video_path] = { 'descriptors'           :   None,
+                                                                                            'tracking_parameters'   :   None,
+                                                                                            'colour_parameters'     :   None,
+                                                                                            'background'            :   None,
+                                                                                            'mask'                  :   None    }
                                 self.loaded_videos_listbox.addItem(self.video_path)
                                 self.loaded_videos_listbox.setCurrentRow(self.loaded_videos_listbox.count() - 1)
                             else:
@@ -2538,10 +2526,11 @@ class TrackingContent(QMainWindow):
                                 if self.background_path:
                                     self.update_preview_parameters(activate = True)
                         else:
-                            self.loaded_videos_and_parameters_dict[self.video_path] = {  'descriptors' : None,
-                                                                                    'tracking_parameters' : None,
-                                                                                    'colour_parameters' : None,
-                                                                                    'background' : None}
+                            self.loaded_videos_and_parameters_dict[self.video_path] = { 'descriptors'           :   None,
+                                                                                        'tracking_parameters'   :   None,
+                                                                                        'colour_parameters'     :   None,
+                                                                                        'background'            :   None,
+                                                                                        'mask'                  :   None    }
                             self.loaded_videos_listbox.addItem(self.video_path)
 
     # Defining Check Functions
@@ -3000,6 +2989,12 @@ class TrackingContent(QMainWindow):
                 self.preview_frame_window.verticalScrollBar().setValue(new_y)
         if self.pan_frame or self.elliptical_crop_frame or self.rectangular_crop_frame:
             self.initial_mouse_position = [event.x(), event.y()]
+        if self.mask:
+            if abs(self.mask[2]) * (self.preview_frame_window_size[0] / self.video_frame_width) > 6 and abs(self.mask[3]) * (self.preview_frame_window_size[1] / self.video_frame_height) > 6:
+                if abs(event.x() - self.mask[0]) <= 3 * self.preview_frame_window_size[0] / self.video_frame_width and abs(event.y() - self.mask[1]) <= 3 * self.preview_frame_window_size[1] / self.video_frame_height:
+                    self.pan_crop = True
+                else:
+                    self.pan_crop = False
         event.accept()
     def event_preview_frame_window_label_mouse_moved(self, event):
         if self.pan_frame:
@@ -3012,14 +3007,26 @@ class TrackingContent(QMainWindow):
                         self.preview_frame_window.verticalScrollBar().setValue(self.preview_frame_window.verticalScrollBar().value() - new_frame_pos[1])
         if self.elliptical_crop_frame or self.rectangular_crop_frame:
             if qApp.mouseButtons() & Qt.LeftButton:
-                center = [self.initial_mouse_position[0] + (event.x() - self.initial_mouse_position[0]) / 2, self.initial_mouse_position[1] + (event.y() - self.initial_mouse_position[1]) / 2]
-                width = (event.x() - self.initial_mouse_position[0]) / 2
-                height = (event.y() - self.initial_mouse_position[1]) / 2
-                if width != 0 and height != 0:
-                    if self.elliptical_crop_frame:
-                        self.mask = [center, width, height, 'ellipse']
-                    if self.rectangular_crop_frame:
-                        self.mask = [center, width, height, 'rectangle']
+                if not self.pan_crop:
+                    center_x = self.initial_mouse_position[0] + (event.x() - self.initial_mouse_position[0]) / 2
+                    center_y = self.initial_mouse_position[1] + (event.y() - self.initial_mouse_position[1]) / 2
+                    width = (event.x() - self.initial_mouse_position[0]) / 2
+                    height = (event.y() - self.initial_mouse_position[1]) / 2
+                    if width != 0 and height != 0:
+                        if self.elliptical_crop_frame:
+                            self.mask = [center_x, center_y, width, height, 'ellipse']
+                        if self.rectangular_crop_frame:
+                            self.mask = [center_x, center_y, width, height, 'rectangle']
+                else:
+                    center_x = event.x()
+                    center_y = event.y()
+                    width = self.mask[2]
+                    height = self.mask[3]
+                    if width != 0 and height != 0:
+                        if self.elliptical_crop_frame:
+                            self.mask = [center_x, center_y, width, height, 'ellipse']
+                        if self.rectangular_crop_frame:
+                            self.mask = [center_x, center_y, width, height, 'rectangle']
                 self.trigger_update_preview(preview_crop = True)
         event.accept()
     def event_preview_frame_window_wheel_scrolled(self, event):
