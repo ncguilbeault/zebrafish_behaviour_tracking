@@ -209,7 +209,7 @@ class TrackingContent(QMainWindow):
             self.crop_frame_button_size = (30, 30)
             self.crop_frame_button_icon_size = (25, 25)
             self.video_playback_button_size = (50, 50)
-            self.video_playback_button_x_offset = 30
+            self.video_playback_button_x_offset = 10
             self.video_playback_button_x_spacing = 5
             self.video_playback_button_icon_size = (60, 60)
             self.preview_parameters_window_size = (400, 295)
@@ -2167,17 +2167,18 @@ class TrackingContent(QMainWindow):
             self.loaded_videos_and_parameters_dict[self.video_path]['background'] = self.background
 
         if self.loaded_videos_and_parameters_dict[self.video_path]['mask'] is None:
-            if self.video_frame_width > self.video_frame_height:
-                center_x = (self.mask[0] / self.preview_frame_window_size[0]) * self.video_frame_width
-                center_y = (self.mask[1] / int((self.video_frame_height / self.video_frame_width) * self.preview_frame_window_size[1])) * self.video_frame_height
-                width = (self.mask[2] / self.preview_frame_window_size[0]) * self.video_frame_width
-                height = (self.mask[3] / int((self.video_frame_height / self.video_frame_width) * self.preview_frame_window_size[1])) * self.video_frame_height
-            else:
-                center_x = (self.mask[0] / int((self.video_frame_width / self.video_frame_height) * self.preview_frame_window_size[0])) * self.video_frame_width
-                center_y = (self.mask[1] / self.preview_frame_window_size[1]) * self.video_frame_height
-                width = (self.mask[2] / int((self.video_frame_width / self.video_frame_height) * self.preview_frame_window_size[0])) * self.video_frame_width
-                height = (self.mask[3] / self.preview_frame_window_size[1]) * self.video_frame_height
-            self.loaded_videos_and_parameters_dict[self.video_path]['mask'] = [center_x, center_y, width, height, self.mask[4]]
+            if self.mask is not None:
+                if self.video_frame_width > self.video_frame_height:
+                    center_x = (self.mask[0] / self.preview_frame_window_size[0]) * self.video_frame_width
+                    center_y = (self.mask[1] / int((self.video_frame_height / self.video_frame_width) * self.preview_frame_window_size[1])) * self.video_frame_height
+                    width = (self.mask[2] / self.preview_frame_window_size[0]) * self.video_frame_width
+                    height = (self.mask[3] / int((self.video_frame_height / self.video_frame_width) * self.preview_frame_window_size[1])) * self.video_frame_height
+                else:
+                    center_x = (self.mask[0] / int((self.video_frame_width / self.video_frame_height) * self.preview_frame_window_size[0])) * self.video_frame_width
+                    center_y = (self.mask[1] / self.preview_frame_window_size[1]) * self.video_frame_height
+                    width = (self.mask[2] / int((self.video_frame_width / self.video_frame_height) * self.preview_frame_window_size[0])) * self.video_frame_width
+                    height = (self.mask[3] / self.preview_frame_window_size[1]) * self.video_frame_height
+                self.loaded_videos_and_parameters_dict[self.video_path]['mask'] = [center_x, center_y, width, height, self.mask[4]]
 
         self.track_video_progress_window = TrackVideoProgressWindow()
         self.track_video_progress_window.loaded_videos_and_parameters_dict = self.loaded_videos_and_parameters_dict
