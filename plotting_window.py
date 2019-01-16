@@ -834,7 +834,12 @@ class DataPlot(QMainWindow):
         self.new_tail_coords = [[[self.new_tail_coords[j][i][0] * np.cos(self.body_tail_angles[j]) - self.new_tail_coords[j][i][1] * np.sin(self.body_tail_angles[j]), self.new_tail_coords[j][i][0] * np.sin(self.body_tail_angles[j]) + self.new_tail_coords[j][i][1] * np.cos(self.body_tail_angles[j])] for i in range(len(self.new_tail_coords[0]))] for j in range(len(self.new_tail_coords))]
         self.tail_angles = [[np.arctan2(self.new_tail_coords[j][i + 1][0] - self.new_tail_coords[j][i][0], self.new_tail_coords[j][i + 1][1] - self.new_tail_coords[j][i][1]) for i in range(len(self.new_tail_coords[0]) - 1)] for j in range(len(self.new_tail_coords))]
         self.tail_angles = [np.array([self.tail_angles[i][j] for i in range(len(self.tail_angles))]) for j in range(len(self.tail_angles[0]))]
-        self.tail_angles = [[self.tail_angles[i][j] - np.pi * 2 if self.tail_angles[i][j] - self.tail_angles[i - 1][j] > np.pi else self.tail_angles[i][j] + np.pi * 2 if self.tail_angles[i][j] - self.tail_angles[i - 1][j] < -np.pi else self.tail_angles[i][j] for j in range(len(self.tail_angles[i]))] for i in range(1, len(self.tail_angles))]
+        for i in range(1, len(self.tail_angles)):
+            for j in range(len(self.tail_angles[i])):
+                if self.tail_angles[i][j] - self.tail_angles[i - 1][j] > np.pi:
+                    self.tail_angles[i][j] -= np.pi * 2
+                elif self.tail_angles[i][j] - self.tail_angles[i - 1][j] < -np.pi:
+                    self.tail_angles[i][j] += np.pi * 2
 
         self.sum_tail_angles = [np.sum([abs(self.tail_angles[i][j]) for i in range(len(self.tail_angles))]) for j in range(len(self.tail_angles[0]))]
         self.tail_angle_frames = np.where([self.sum_tail_angles[i] == self.sum_tail_angles[i + 1] == self.sum_tail_angles[i + 2] for i in range(len(self.sum_tail_angles) - 2)])[0]
@@ -877,17 +882,22 @@ class DataPlot(QMainWindow):
         self.smoothed_heading_angles = np.convolve(self.heading_angles, np.ones(self.smoothing_factor)/self.smoothing_factor, mode = 'same')
 
         self.eye_angles = [[self.eye_angle_array[i][j] - self.heading_angle_array[i] for i in range(len(self.eye_angle_array))] for j in range(len(self.eye_angle_array[0]))]
-        print(len(self.eye_angles))
 
-        i = 0
-        for k in range(len(self.eye_angles)):
-            for j in range(len(self.eye_angles[k])):
-                if j not in self.tail_angle_frames:
-                    i = j
-                else:
-                    self.eye_angles[k][j] = self.eye_angles[k][i]
+        # i = 0
+        # for k in range(len(self.eye_angles)):
+        #     for j in range(len(self.eye_angles[k])):
+        #         if j not in self.tail_angle_frames:
+        #             i = j
+        #         else:
+        #             self.eye_angles[k][j] = self.eye_angles[k][i]
 
-        self.eye_angles = [[self.eye_angles[i][j] - np.pi * 2 if self.eye_angles[i][j] - self.eye_angles[i][j - 1] > np.pi else self.eye_angles[i][j] + np.pi * 2 if self.eye_angles[i][j] - self.eye_angles[i][j - 1] < -np.pi else self.eye_angles[i][j] for j in range(len(self.eye_angles[i]))] for i in range(len(self.eye_angles))]
+        # self.eye_angles = [[self.eye_angles[i][j] - np.pi * 2 if self.eye_angles[i][j] - self.eye_angles[i][j - 1] > np.pi else self.eye_angles[i][j] + np.pi * 2 if self.eye_angles[i][j] - self.eye_angles[i][j - 1] < -np.pi else self.eye_angles[i][j] for j in range(len(self.eye_angles[i]))] for i in range(len(self.eye_angles))]
+        for i in range(1, len(self.eye_angles)):
+            for j in range(len(self.eye_angles[i])):
+                if self.eye_angles[i][j] - self.eye_angles[i - 1][j] > np.pi:
+                    self.eye_angles[i][j] -= np.pi * 2
+                elif self.eye_angles[i][j] - self.eye_angles[i - 1][j] < -np.pi:
+                    self.eye_angles[i][j] += np.pi * 2
 
         self.smoothed_eye_angles = [np.convolve(self.eye_angles[i], np.ones(self.smoothing_factor)/self.smoothing_factor, mode = 'same') for i in range(len(self.eye_angles))]
 
