@@ -853,7 +853,7 @@ def track_tail_in_video_with_multiprocessing(video_path, colours, n_tail_points,
 
     # Create or load background image.
     if background_path is None:
-        background = calculate_background(video_path, save_path, save_background = save_background)[0].astype(np.uint8)
+        background = calculate_background(video_path, save_path = save_path, save_background = save_background).astype(np.uint8)
     else:
         background = cv2.imread(background_path, cv2.IMREAD_GRAYSCALE).astype(np.uint8)
 
@@ -942,7 +942,7 @@ def track_tail_in_video_without_multiprocessing(video_path, colours, n_tail_poin
 
     # Create or load background image.
     if background_path is None:
-        background = calculate_background(video_path, save_path, save_background = save_background)[0].astype(np.uint8)
+        background = calculate_background(video_path, save_path = save_path, save_background = save_background)
     else:
         background = cv2.imread(background_path, cv2.IMREAD_GRAYSCALE).astype(np.uint8)
 
@@ -981,9 +981,10 @@ def track_tail_in_video_without_multiprocessing(video_path, colours, n_tail_poin
     for i in range(batch_iterations):
         print('Tracking video. Processing frame numbers: {0} - {1} / {2}.'.format(starting_frame, starting_frame + frame_batch_size, video_n_frames), end = '\r')
         frame_array = load_frames_into_memory(video_path, starting_frame = starting_frame, frame_batch_size = frame_batch_size)
-        frame_array = subtract_background_from_frames(frame_array, background)
-        frame_array = apply_median_blur_to_frames(frame_array)
-        tracking_params = [[frame, success, n_tail_points, dist_tail_points, dist_eyes, dist_swim_bladder, pixel_threshold] for success, frame in frame_array]
+        # frame_array = subtract_background_from_frames(frame_array, background)
+        # frame_array = apply_median_blur_to_frames(frame_array)
+        extended_eyes_calculation, eyes_threshold, median_blur, tracking_method, initial_pixel_search, invert_threshold, range_angles
+        tracking_params = [[frame, background, success, n_tail_points, dist_tail_points, dist_eyes, dist_swim_bladder, pixel_threshold, False, 100, 3, 'free_swimming', 'darkest', False, 120] for success, frame in frame_array]
         tracking_results = np.array([track_tail_in_frame(i) for i in tracking_params])
 
         eye_coord_array = np.append(eye_coord_array, np.array([tracking_results[:,0], tracking_results[:,1]]))
