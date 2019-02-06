@@ -2746,12 +2746,6 @@ class TrackingContent(QMainWindow):
             if self.pan_frame_button.isChecked():
                 self.pan_frame = False
                 self.pan_frame_button.setChecked(False)
-            # if self.elliptical_crop_frame_button.isChecked():
-            #     self.elliptical_crop_frame = False
-            #     self.elliptical_crop_frame_button.setChecked(False)
-            # if self.rectangular_crop_frame_button.isChecked():
-            #     self.rectangular_crop_frame = False
-            #     self.rectangular_crop_frame_button.setChecked(False)
         else:
             self.magnify_frame = False
     def check_pan_frame_button(self):
@@ -2760,12 +2754,6 @@ class TrackingContent(QMainWindow):
             if self.magnify_frame_button.isChecked():
                 self.magnify_frame = False
                 self.magnify_frame_button.setChecked(False)
-            # if self.elliptical_crop_frame_button.isChecked():
-            #     self.elliptical_crop_frame = False
-            #     self.elliptical_crop_frame_button.setChecked(False)
-            # if self.rectangular_crop_frame_button.isChecked():
-            #     self.rectangular_crop_frame = False
-            #     self.rectangular_crop_frame_button.setChecked(False)
         else:
             self.pan_frame = False
     def check_elliptical_crop_frame_button(self):
@@ -3019,7 +3007,7 @@ class TrackingContent(QMainWindow):
     # Defining Event Functions
     def event_preview_frame_window_label_mouse_clicked(self, event):
         if self.magnify_frame:
-            self.initial_mouse_position = (event.x(), event.y())
+            self.initial_mouse_position = [event.x(), event.y()]
             if qApp.mouseButtons() & Qt.LeftButton:
                 self.trigger_update_preview(magnify = True)
             elif qApp.mouseButtons() & Qt.RightButton:
@@ -3033,7 +3021,7 @@ class TrackingContent(QMainWindow):
                 current_midpoint_y = (self.preview_frame_window.verticalScrollBar().pageStep() / 2) + self.preview_frame_window.verticalScrollBar().value()
                 new_y = self.initial_mouse_position[1] - current_midpoint_y + self.preview_frame_window.verticalScrollBar().value()
                 self.preview_frame_window.verticalScrollBar().setValue(new_y)
-        if self.pan_frame or self.elliptical_crop_frame or self.rectangular_crop_frame:
+        elif self.pan_frame or self.elliptical_crop_frame or self.rectangular_crop_frame:
             self.initial_mouse_position = [event.x(), event.y()]
         if self.mask:
             if abs(self.mask[2]) * (self.preview_frame_window_size[0] / self.video_frame_width) > 6 and abs(self.mask[3]) * (self.preview_frame_window_size[1] / self.video_frame_height) > 6:
@@ -3043,7 +3031,7 @@ class TrackingContent(QMainWindow):
                     self.pan_crop = False
         event.accept()
     def event_preview_frame_window_label_mouse_moved(self, event):
-        if self.elliptical_crop_frame or self.rectangular_crop_frame:
+        if (self.elliptical_crop_frame or self.rectangular_crop_frame) and not self.magnify_frame:
             if self.pan_frame:
                 if qApp.mouseButtons() & Qt.LeftButton:
                     new_frame_pos = (event.x() - self.initial_mouse_position[0], event.y() - self.initial_mouse_position[1])
