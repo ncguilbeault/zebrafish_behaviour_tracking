@@ -13,9 +13,9 @@ from background_calculation_thread import CalculateBackgroundProgressWindow
 from timer_thread import TimerThread
 import yaml
 
-from PyQt5.QtWidgets import *
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
+from PyQt5.QtWidgets import QMainWindow, QScrollArea, QFrame, QLabel, QListWidget, QPushButton, QSlider, QLineEdit, QCheckBox, QWidget, QSizePolicy, QGridLayout, QComboBox, QFileDialog, qApp
+from PyQt5.QtGui import QFont, QIcon, QImage, QPixmap
+from PyQt5.QtCore import Qt, QSize
 
 class TrackingWindow(QScrollArea):
 
@@ -1934,7 +1934,7 @@ class TrackingContent(QMainWindow):
                 self.update_preview_parameters(activate_preview_background = True)
     def trigger_open_video(self):
         self.trigger_update_parameters()
-        self.video_path, _ = QFileDialog.getOpenFileName(self,"Open Video File", "","Video Files (*.avi; *.mp4)", options=QFileDialog.Options())
+        self.video_path = QFileDialog.getOpenFileName(self,"Open Video File", "","Video Files (*.avi; *.mp4, *.mov)", options=QFileDialog.Options())[0]
         if self.video_path:
             self.frame_number = 1
             self.background = None
@@ -2746,12 +2746,12 @@ class TrackingContent(QMainWindow):
             if self.pan_frame_button.isChecked():
                 self.pan_frame = False
                 self.pan_frame_button.setChecked(False)
-            if self.elliptical_crop_frame_button.isChecked():
-                self.elliptical_crop_frame = False
-                self.elliptical_crop_frame_button.setChecked(False)
-            if self.rectangular_crop_frame_button.isChecked():
-                self.rectangular_crop_frame = False
-                self.rectangular_crop_frame_button.setChecked(False)
+            # if self.elliptical_crop_frame_button.isChecked():
+            #     self.elliptical_crop_frame = False
+            #     self.elliptical_crop_frame_button.setChecked(False)
+            # if self.rectangular_crop_frame_button.isChecked():
+            #     self.rectangular_crop_frame = False
+            #     self.rectangular_crop_frame_button.setChecked(False)
         else:
             self.magnify_frame = False
     def check_pan_frame_button(self):
@@ -2760,12 +2760,12 @@ class TrackingContent(QMainWindow):
             if self.magnify_frame_button.isChecked():
                 self.magnify_frame = False
                 self.magnify_frame_button.setChecked(False)
-            if self.elliptical_crop_frame_button.isChecked():
-                self.elliptical_crop_frame = False
-                self.elliptical_crop_frame_button.setChecked(False)
-            if self.rectangular_crop_frame_button.isChecked():
-                self.rectangular_crop_frame = False
-                self.rectangular_crop_frame_button.setChecked(False)
+            # if self.elliptical_crop_frame_button.isChecked():
+            #     self.elliptical_crop_frame = False
+            #     self.elliptical_crop_frame_button.setChecked(False)
+            # if self.rectangular_crop_frame_button.isChecked():
+            #     self.rectangular_crop_frame = False
+            #     self.rectangular_crop_frame_button.setChecked(False)
         else:
             self.pan_frame = False
     def check_elliptical_crop_frame_button(self):
@@ -2779,11 +2779,17 @@ class TrackingContent(QMainWindow):
                 self.pan_frame_button.setChecked(False)
             if self.rectangular_crop_frame_button.isChecked():
                 self.rectangular_crop_frame = False
+                if self.mask:
+                    self.mask = None
+                if self.pan_crop:
+                    self.pan_crop = False
                 self.rectangular_crop_frame_button.setChecked(False)
             self.trigger_update_preview(label_size = self.video_frame_width, preview_crop = True)
             self.update_preview_frame_window_scroll_bars()
         else:
             self.elliptical_crop_frame = False
+            self.mask = None
+            self.trigger_update_preview(label_size = self.video_frame_width, preview_crop = True)
     def check_rectangular_crop_frame_button(self):
         if self.rectangular_crop_frame_button.isChecked():
             self.rectangular_crop_frame = True
@@ -2795,11 +2801,17 @@ class TrackingContent(QMainWindow):
                 self.pan_frame_button.setChecked(False)
             if self.elliptical_crop_frame_button.isChecked():
                 self.elliptical_crop_frame = False
+                if self.mask:
+                    self.mask = None
+                if self.pan_crop:
+                    self.pan_crop = False
                 self.elliptical_crop_frame_button.setChecked(False)
             self.trigger_update_preview(label_size = self.video_frame_width, preview_crop = True)
             self.update_preview_frame_window_scroll_bars()
         else:
             self.rectangular_crop_frame = False
+            self.mask = None
+            self.trigger_update_preview(label_size = self.video_frame_width, preview_crop = True)
     def check_pause_video_button(self):
         if not self.play_video_slow_speed and not self.play_video_medium_speed and not self.play_video_max_speed:
             self.pause_video_button.setChecked(True)
@@ -3031,7 +3043,39 @@ class TrackingContent(QMainWindow):
                     self.pan_crop = False
         event.accept()
     def event_preview_frame_window_label_mouse_moved(self, event):
-        if self.pan_frame:
+        if self.elliptical_crop_frame or self.rectangular_crop_frame:
+            if self.pan_frame:
+                if qApp.mouseButtons() & Qt.LeftButton:
+                    new_frame_pos = (event.x() - self.initial_mouse_position[0], event.y() - self.initial_mouse_position[1])
+                    if self.preview_frame is not None:
+                        if self.preview_frame_window_label_size[0] > self.preview_frame_window_size[0]:
+                            self.preview_frame_window.horizontalScrollBar().setValue(self.preview_frame_window.horizontalScrollBar().value() - new_frame_pos[0])
+                        if self.preview_frame_window_label_size[1] > self.preview_frame_window_size[1]:
+                            self.preview_frame_window.verticalScrollBar().setValue(self.preview_frame_window.verticalScrollBar().value() - new_frame_pos[1])
+            else:
+                if qApp.mouseButtons() & Qt.LeftButton:
+                    if not self.pan_crop or not self.mask:
+                        center_x = self.initial_mouse_position[0] + (event.x() - self.initial_mouse_position[0]) / 2
+                        center_y = self.initial_mouse_position[1] + (event.y() - self.initial_mouse_position[1]) / 2
+                        width = (event.x() - self.initial_mouse_position[0]) / 2
+                        height = (event.y() - self.initial_mouse_position[1]) / 2
+                        if width != 0 and height != 0:
+                            if self.elliptical_crop_frame:
+                                self.mask = [center_x, center_y, width, height, 'ellipse']
+                            if self.rectangular_crop_frame:
+                                self.mask = [center_x, center_y, width, height, 'rectangle']
+                    else:
+                        center_x = event.x()
+                        center_y = event.y()
+                        width = self.mask[2]
+                        height = self.mask[3]
+                        if width != 0 and height != 0:
+                            if self.elliptical_crop_frame:
+                                self.mask = [center_x, center_y, width, height, 'ellipse']
+                            if self.rectangular_crop_frame:
+                                self.mask = [center_x, center_y, width, height, 'rectangle']
+                    self.trigger_update_preview(preview_crop = True)
+        elif self.pan_frame:
             if qApp.mouseButtons() & Qt.LeftButton:
                 new_frame_pos = (event.x() - self.initial_mouse_position[0], event.y() - self.initial_mouse_position[1])
                 if self.preview_frame is not None:
@@ -3039,29 +3083,6 @@ class TrackingContent(QMainWindow):
                         self.preview_frame_window.horizontalScrollBar().setValue(self.preview_frame_window.horizontalScrollBar().value() - new_frame_pos[0])
                     if self.preview_frame_window_label_size[1] > self.preview_frame_window_size[1]:
                         self.preview_frame_window.verticalScrollBar().setValue(self.preview_frame_window.verticalScrollBar().value() - new_frame_pos[1])
-        if self.elliptical_crop_frame or self.rectangular_crop_frame:
-            if qApp.mouseButtons() & Qt.LeftButton:
-                if not self.pan_crop:
-                    center_x = self.initial_mouse_position[0] + (event.x() - self.initial_mouse_position[0]) / 2
-                    center_y = self.initial_mouse_position[1] + (event.y() - self.initial_mouse_position[1]) / 2
-                    width = (event.x() - self.initial_mouse_position[0]) / 2
-                    height = (event.y() - self.initial_mouse_position[1]) / 2
-                    if width != 0 and height != 0:
-                        if self.elliptical_crop_frame:
-                            self.mask = [center_x, center_y, width, height, 'ellipse']
-                        if self.rectangular_crop_frame:
-                            self.mask = [center_x, center_y, width, height, 'rectangle']
-                else:
-                    center_x = event.x()
-                    center_y = event.y()
-                    width = self.mask[2]
-                    height = self.mask[3]
-                    if width != 0 and height != 0:
-                        if self.elliptical_crop_frame:
-                            self.mask = [center_x, center_y, width, height, 'ellipse']
-                        if self.rectangular_crop_frame:
-                            self.mask = [center_x, center_y, width, height, 'rectangle']
-                self.trigger_update_preview(preview_crop = True)
         event.accept()
     def event_preview_frame_window_wheel_scrolled(self, event):
         event.ignore()
